@@ -46,13 +46,23 @@ uploaded_files = st.sidebar.file_uploader(
 if not uploaded_files:
     st.info("Sube al menos un archivo GPX o CSV para comenzar.")
     st.markdown("""
-# maxSail-analytics
 
-**Visor y analizador open source de tracks GPS para regatas y entrenamientos de vela ligera.**
+**maxsail-analytics** es una herramienta open source para visualizar, analizar y comparar tracks GPS de regatas y entrenamientos de vela.  
+Permite cargar archivos GPX o CSV, mostrar recorridos en mapa, comparar dos tracks, analizar métricas clave y detectar maniobras, todo de forma sencilla y colaborativa.
 
-Sube uno o varios archivos GPX o CSV para analizar, comparar y visualizar tus navegaciones.
+### Características principales / Main features
 
-Contacto:
+- Visualización de tracks en mapa interactivo.
+- Comparación de dos recorridos lado a lado.
+- Análisis de velocidad, rumbo, TWA, VMG y distancia recorrida.
+- Detección automática de maniobras (tacks/gybes).
+- Cálculo y visualización de métricas clave.
+- Compatible con archivos GPX y CSV normalizados.
+- Interfaz intuitiva y lista para compartir con la flota.
+- **Open source y multiplataforma**.
+
+### Contacto:
+
 - Name: Maximiliano Mannise
 - Email: maxsail.project@gmail.com
 - GitHub: https://github.com/maxsail-project/maxsail-analytics 
