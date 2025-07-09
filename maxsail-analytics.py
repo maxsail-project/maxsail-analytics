@@ -52,10 +52,10 @@ if not uploaded_files:
 
 Sube uno o varios archivos GPX o CSV para analizar, comparar y visualizar tus navegaciones.
 
-[Repositorio en GitHub](https://github.com/maxsail-project/maxsail-analytics)  
-[Ver visor online](https://maxsail-analytics.streamlit.app/)
-
-Creado y mantenido por Maximiliano Mannise.
+Contacto:
+- Name: Maximiliano Mannise
+- Email: maxsail.project@gmail.com
+- GitHub: https://github.com/maxsail-project/maxsail-analytics 
 
 ---
 
