@@ -35,7 +35,7 @@ from utils import (
 # INICIO APP STREAMLIT
 # -----------------------------
 st.set_page_config(page_title="Visor de Regata GPX/CSV", layout="wide")
-st.title("🚩 MaxSail : Sailing Data, Better Decisions")
+st.title("🚩 maxSail : Sailing Data, Better Decisions")
 
 uploaded_files = st.sidebar.file_uploader(
     "Selecciona uno o más archivos GPX o CSV", 
