@@ -37,6 +37,27 @@ from utils import (
 st.set_page_config(page_title="Visor de Regata GPX/CSV", layout="wide")
 st.title("🚩 maxSail : Sailing Data, Better Decisions")
 
+if not uploaded_files:
+    st.markdown("""
+# maxSail-analytics
+
+**Visor y analizador open source de tracks GPS para regatas y entrenamientos de vela ligera.**
+
+Sube uno o varios archivos GPX o CSV para analizar, comparar y visualizar tus navegaciones.
+
+[Repositorio en GitHub](https://github.com/maxsail-project/maxsail-analytics)  
+[Ver visor online](https://maxsail-analytics.streamlit.app/)
+
+Creado y mantenido por Maximiliano Mannise.
+
+---
+
+*Este proyecto es open source, ¡colaboraciones y sugerencias bienvenidas!*  
+© 2024-2025 Maximiliano Mannise / maxsail-project
+""")
+    st.stop()
+
+
 uploaded_files = st.sidebar.file_uploader(
     "Selecciona uno o más archivos GPX o CSV", 
     type=["gpx", "csv"], 
