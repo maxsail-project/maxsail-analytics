@@ -76,6 +76,36 @@ El visor requiere archivos CSV normalizados con al menos estas columnas:
 - Email: maxsail.project@gmail.com
 - GitHub: maxsail-project
 
+---
+
+## Sobre el autor
+
+¡Hola! Soy Maximiliano Mannise, ingeniero en informática (trabajando desde 1998), fanático de los datos, indicadores y métricas.  
+Navego desde hace más de 20 años: primero por diversión, luego en regatas de crucero y desde 2020 en vela ligera clase Snipe.
+
+Por deformación profesional, suelo llevar todo al terreno analítico.  
+Aunque existen software muy profesionales para análisis de datos de navegación, buscaba una herramienta **simple, personal, rápida de usar**…  
+y de repente me encontré desarrollando esta aplicación, que ahora comparto con otros regatistas. ¡Estoy seguro de que no soy el único que disfruta mirar los datos después de cada regata!
+
+Si bien está pensado para analizar información básica a partir de un GPX, se puede extender a análisis más completos con CSV que contengan más variables… algo de eso ya estoy preparando.
+
+**Cualquier colaboración, solicitud de mejora o feedback es muy bienvenido.  
+¡Nos vemos en el agua!**
+
+## About the author
+
+Hi! I'm Maximiliano Mannise, a software engineer (working since 1998), data geek, and passionate sailor.  
+I've been sailing for more than 20 years, first for fun, then in cruising regattas, and since 2020, in the Snipe dinghy class.
+
+As a data and analytics fan, I always try to look at sailing from an analytical perspective.  
+While there are very professional tools for navigation log analysis, I wanted something simple, personal, and fast…  
+and I ended up building this app, which I'm now sharing with other sailors. I'm sure I'm not the only one who enjoys looking at post-race data!
+
+This project is meant for basic GPX-based analysis, but it can easily be extended to richer CSV data… I'm already working on that.
+
+**Any contribution, improvement request, or feedback is welcome.  
+See you on the water!**
+
 ## Aviso legal / Disclaimer
 
 Este visor es un proyecto experimental y de uso abierto.
