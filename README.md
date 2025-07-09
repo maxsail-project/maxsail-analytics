@@ -49,6 +49,26 @@ Upload GPX or CSV files, display tracks on a map, compare two tracks, analyze ke
 - Ajusta los parámetros de análisis y explora los resultados en gráficos y tablas.
 - Exporta o comparte los insights con tu flota.
 
+## Formato esperado del archivo CSV
+
+El visor requiere archivos CSV normalizados con al menos estas columnas:
+
+| Columna   | Descripción                                    | Ejemplo         |
+|-----------|------------------------------------------------|-----------------|
+| Lat       | Latitud (decimal, WGS84)                       | -34.912345      |
+| Lon       | Longitud (decimal, WGS84)                      | -56.163421      |
+| UTC       | Fecha y hora en UTC (ISO 8601 o YYYY-MM-DD HH:MM:SS) | 2024-06-27 14:23:15 |
+| COG       | Rumbo sobre el fondo (°)                       | 89.0            |
+| SOG       | Velocidad sobre el fondo (nudos)               | 5.33            |
+| Dist      | Distancia entre puntos (metros)                | 8.2             |
+| SourceFile (opcional) | Nombre de archivo origen           | regata1.csv     |
+
+**Notas:**
+- Si el CSV tiene más columnas, serán ignoradas salvo que coincidan con el formato interno (TWA, VMG, etc.).
+- La columna `UTC` debe estar en formato reconocible por pandas (ej: `YYYY-MM-DD HH:MM:SS`).
+- Si cargas varios archivos, cada uno debe tener al menos estas columnas.
+- Si el archivo no tiene `SourceFile`, se usará el nombre del archivo como identificador de track.
+
 ## Contacto / Contact
 
 - Autor / Author: Maximiliano Mannise
