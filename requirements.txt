@@ -1,0 +1,7 @@
+streamlit
+gpxpy
+pyproj
+pandas
+numpy
+altair
+pydeck
