@@ -37,7 +37,14 @@ from utils import (
 st.set_page_config(page_title="Visor de Regata GPX/CSV", layout="wide")
 st.title("🚩 maxSail : Sailing Data, Better Decisions")
 
+uploaded_files = st.sidebar.file_uploader(
+    "Selecciona uno o más archivos GPX o CSV", 
+    type=["gpx", "csv"], 
+    accept_multiple_files=True
+)
+
 if not uploaded_files:
+    st.info("Sube al menos un archivo GPX o CSV para comenzar.")
     st.markdown("""
 # maxSail-analytics
 
@@ -55,18 +62,7 @@ Creado y mantenido por Maximiliano Mannise.
 *Este proyecto es open source, ¡colaboraciones y sugerencias bienvenidas!*  
 © 2024-2025 Maximiliano Mannise / maxsail-project
 """)
-    st.stop()
-
-
-uploaded_files = st.sidebar.file_uploader(
-    "Selecciona uno o más archivos GPX o CSV", 
-    type=["gpx", "csv"], 
-    accept_multiple_files=True
-)
-
-if not uploaded_files:
-    st.info("Sube al menos un archivo GPX o CSV para comenzar.")
-    st.stop()
+    st.stop()    
 
 dfs = []
 for file in uploaded_files:
