@@ -4,7 +4,7 @@
 
 [maxSail-analytics](https://maxsail-analytics.streamlit.app/) Acceso a la App publicada en streamlit
 
-Puedes descargar los GPX de este repo para hacer pruebas o mejor aún, usar los tuyos.
+Puedes descargar los GPX de este repo para hacer pruebas o mejor aún: usar los tuyos.
 
 ## Descripción
 
@@ -26,6 +26,10 @@ Upload GPX or CSV files, display tracks on a map, compare two tracks, analyze ke
 - **Open source y multiplataforma**.
 
 ## Instalación / Installation
+
+Versión on-line: https://maxsail-analytics.streamlit.app/
+
+Si quieres usar la aplicación en local sigue estos pasos:
 
 1. Clona el repositorio / Clone the repository:
 
