@@ -62,17 +62,9 @@ if not uploaded_files:
 
 ### Formato esperado del archivo CSV
 
-El visor requiere archivos CSV normalizados con al menos estas columnas:
+El visor requiere archivos CSV normalizados con al menos estas columnas: 
 
-| Columna   | Descripción                                    | Ejemplo         |
-|-----------|------------------------------------------------|-----------------|
-| Lat       | Latitud (decimal, WGS84)                       | -34.912345      |
-| Lon       | Longitud (decimal, WGS84)                      | -56.163421      |
-| UTC       | Fecha y hora en UTC (ISO 8601 o YYYY-MM-DD HH:MM:SS) | 2024-06-27 14:23:15 |
-| COG       | Rumbo sobre el fondo (°) (Course Over Ground)  | 89.0            |
-| SOG       | Velocidad sobre el fondo (nudos) (Speed Over Ground) | 5.33            |
-| Dist      | Distancia entre puntos (metros)                | 8.2             |
-| SourceFile (opcional) | Nombre de archivo origen           | 2025-07-ESP30782-P01.GPX |
+- Lat, Lon, UTC, COG, SOG, Dist, SourceFile (opcional)
 
 ### Contacto:
 
