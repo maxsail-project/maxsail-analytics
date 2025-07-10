@@ -205,3 +205,15 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# PERSONALIZACION
+*.gpx
+*.csv
+*.fit
+*.vcc
+*.kml
+*.tcx
+*.zip
+local_files/
+data/
+poc/
