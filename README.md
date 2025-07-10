@@ -66,10 +66,10 @@ El visor requiere archivos CSV normalizados con al menos estas columnas:
 | Lat       | Latitud (decimal, WGS84)                       | -34.912345      |
 | Lon       | Longitud (decimal, WGS84)                      | -56.163421      |
 | UTC       | Fecha y hora en UTC (ISO 8601 o YYYY-MM-DD HH:MM:SS) | 2024-06-27 14:23:15 |
-| COG       | Rumbo sobre el fondo (°)                       | 89.0            |
-| SOG       | Velocidad sobre el fondo (nudos)               | 5.33            |
+| COG       | Rumbo sobre el fondo (°) (Course Over Ground)  | 89.0            |
+| SOG       | Velocidad sobre el fondo (nudos) (Speed Over Ground) | 5.33            |
 | Dist      | Distancia entre puntos (metros)                | 8.2             |
-| SourceFile (opcional) | Nombre de archivo origen           | regata1.csv     |
+| SourceFile (opcional) | Nombre de archivo origen           | 2025-07-ESP30782-P01.GPX |
 
 **Notas:**
 - Si el CSV tiene más columnas, serán ignoradas salvo que coincidan con el formato interno (TWA, VMG, etc.).
@@ -83,8 +83,6 @@ El visor requiere archivos CSV normalizados con al menos estas columnas:
 - LinkedIn: https://www.linkedin.com/in/mmannise
 - Email: maxsail.project@gmail.com
 - GitHub: maxsail-project
-
----
 
 ## Sobre el autor
 
