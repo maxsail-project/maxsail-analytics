@@ -1,3 +1,5 @@
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://maxsail-analytics.streamlit.app/)
+
 # maxSail-analytics
 
 **Sailing Data, Better Decisions**  
