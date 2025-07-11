@@ -34,7 +34,7 @@ from utils import (
 # -----------------------------
 # INICIO APP STREAMLIT
 # -----------------------------
-st.set_page_config(page_title="Visor de Regata GPX/CSV", layout="wide")
+st.set_page_config(page_title="maxSail-analytics: Visor de regata GPX/CSV", layout="wide")
 st.title("🚩 maxSail : Sailing Data, Better Decisions")
 
 uploaded_files = st.sidebar.file_uploader(
@@ -341,6 +341,19 @@ for i, dist in enumerate(dist_metros):
 # --- Añade la fila a la tabla ---
 tabla_metricas_df.loc["Diferencia con mínima distancia (m)"] = diferencias
 
+min_fechas = []
+max_fechas = []
+for df in track_dfs:
+    if not df.empty:
+        min_fechas.append(df['UTC'].min().strftime("%Y-%m-%d %H:%M:%S"))
+        max_fechas.append(df['UTC'].max().strftime("%Y-%m-%d %H:%M:%S"))
+    else:
+        min_fechas.append("-")
+        max_fechas.append("-")
+
+tabla_metricas_df.loc["Fecha/Hora inicio"] = min_fechas
+tabla_metricas_df.loc["Fecha/Hora fin"] = max_fechas
+
 # --- Formato visual (color de encabezados) ---
 styled = tabla_metricas_df.style
 for label, color in zip(track_labels, track_colors):
@@ -348,6 +361,12 @@ for label, color in zip(track_labels, track_colors):
 
 st.markdown("#### Comparativa por Track")
 st.dataframe(styled, use_container_width=False)
+
+# Muestra el TWD al principio de la sección de análisis
+if twd is not None:
+    st.info(f"**TWD (True Wind Direction) :**  {twd:.0f}°")
+else:
+    st.warning("No se ingresó o detectó un TWD válido.")
 
 st.caption("* TWA y VMG calculados según el TWD ingresado manualmente")
 st.divider()
@@ -391,6 +410,7 @@ if not df_plot.empty:
     chart_cog = alt.Chart(df_plot).mark_line().encode(
         x=alt.X('UTC:T', title='Tiempo'),
         y=alt.Y('COG:Q', title='COG (°)'),
+        #y=alt.Y('COG:Q', title='COG (°)', scale=alt.Scale(domain=[0, 360])),
         color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track"))
     ).properties(width=900, height=250)
     st.altair_chart(chart_cog, use_container_width=True)
@@ -584,6 +604,7 @@ if not maniobra_df.empty:
 # --- VISUALIZACIÓN DEL GRÁFICO ---
 chart_cog = alt.Chart(df_plot).mark_line().encode(
     x=alt.X('UTC:T', title='Tiempo'),
+    #y=alt.Y('COG:Q', title='COG (°)', scale=alt.Scale(domain=[0, 360])), 
     y=alt.Y('COG:Q', title='COG (°)'),
     color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track"))
 )
@@ -664,7 +685,189 @@ else:
     st.dataframe(tabla_df_pivot, hide_index=True, use_container_width=True)
 
 
-### PoC st.caption("SOG en naranja, COG en gris.")
+# --- ANALISIS Y TABLAS BASADAS EN VMG ---
+
+# RANKING POR TRAMO
+
+st.subheader("🏅 Ranking por tramo: VMG en ceñida y popa")
+
+ranking_vmg = []
+
+for i, df in enumerate(track_dfs):
+    if df.empty:
+        ranking_vmg.append({
+            "Track": track_labels[i],
+            "VMG Ceñida (prom)": "-",
+            "VMG Popa (prom)": "-"
+        })
+        continue
+
+    # Ceñida: TWA entre 40° y 70°
+    ceñida = df[(df["TWA"].abs() >= 40) & (df["TWA"].abs() <= 70)]
+    vmg_cejida_prom = ceñida["VMG"].mean() if not ceñida.empty else float('nan')
+
+    # Popa: TWA >= 120°
+    popa = df[df["TWA"].abs() >= 120]
+    vmg_popa_prom = popa["VMG"].mean() if not popa.empty else float('nan')
+
+    ranking_vmg.append({
+        "Track": track_labels[i],
+        "VMG Ceñida (prom)": f"{vmg_cejida_prom:.2f}" if not np.isnan(vmg_cejida_prom) else "-",
+        "VMG Popa (prom)": f"{vmg_popa_prom:.2f}" if not np.isnan(vmg_popa_prom) else "-"
+    })
+
+ranking_df = pd.DataFrame(ranking_vmg)
+st.dataframe(ranking_df, use_container_width=True)
+
+
+# MEJOR Y PEOR TRAMO
+
+# Tamaño de la ventana (en puntos consecutivos)
+window = 20  # Tamaño de la ventana (en puntos consecutivos)
+window = st.number_input(
+    "Tamaño de la ventana deslizante (n° de puntos)",
+    min_value=10, max_value=120, value=20, step=5,
+    help="Cantidad de puntos para calcular mejor/peor ceñida y popa"
+)
+
+# -------- Mejor ceñida / popa --------
+st.subheader("⛵ Mejor tramo de ceñida / popa de cada track")
+mejor_tramos = []
+
+for i, df in enumerate(track_dfs):
+    if df.empty:
+        for tramo, rango, label in [
+            ("ceñida", (40, 70), "ceñida"),
+            ("popa", (120, 180), "Popa")
+        ]:
+            mejor_tramos.append({
+                "Track": track_labels[i], "Tipo": label,
+                "TWA inicio": "-", "TWA fin": "-", "UTC inicio": "-", "UTC fin": "-",
+                "VMG promedio": "-", "Duración (s)": "-", "Distancia (m)": "-"
+            })
+        continue
+
+    for tramo, rango, label in [
+        ("ceñida", (40, 70), "ceñida"),
+        ("popa", (120, 180), "Popa")
+    ]:
+        df_rango = df[(df["TWA"].abs() >= rango[0]) & (df["TWA"].abs() <= rango[1])].reset_index(drop=True)
+        if len(df_rango) < window:
+            mejor_tramos.append({
+                "Track": track_labels[i], "Tipo": label,
+                "TWA inicio": "-", "TWA fin": "-", "UTC inicio": "-", "UTC fin": "-",
+                "VMG promedio": "-", "Duración (s)": "-", "Distancia (m)": "-"
+            })
+            continue
+
+        idx_best = -1
+        if label == "ceñida":
+            # Ceñida: buscar máximo VMG promedio (más positivo)
+            best_vmg = float('-inf')
+            for idx in range(len(df_rango) - window + 1):
+                vmg_prom = df_rango.loc[idx:idx+window-1, "VMG"].mean()
+                if vmg_prom > best_vmg:
+                    best_vmg = vmg_prom
+                    idx_best = idx
+            vmg_val = best_vmg
+        else:
+            # Popa: buscar mínimo VMG promedio (más negativo)
+            best_vmg = float('inf')
+            for idx in range(len(df_rango) - window + 1):
+                vmg_prom = df_rango.loc[idx:idx+window-1, "VMG"].mean()
+                if vmg_prom < best_vmg:
+                    best_vmg = vmg_prom
+                    idx_best = idx
+            vmg_val = best_vmg
+
+        tramo_best = df_rango.loc[idx_best:idx_best+window-1]
+        utc_ini = tramo_best["UTC"].iloc[0]
+        utc_fin = tramo_best["UTC"].iloc[-1]
+        twa_ini = tramo_best["TWA"].iloc[0]
+        twa_fin = tramo_best["TWA"].iloc[-1]
+        duracion = (pd.to_datetime(utc_fin) - pd.to_datetime(utc_ini)).total_seconds()
+        distancia = tramo_best["Dist"].sum()
+
+        mejor_tramos.append({
+            "Track": track_labels[i], "Tipo": label,
+            "TWA inicio": f"{twa_ini:.1f}", "TWA fin": f"{twa_fin:.1f}",
+            "UTC inicio": str(utc_ini), "UTC fin": str(utc_fin),
+            "VMG promedio": f"{vmg_val:.2f}",
+            "Duración (s)": f"{duracion:.1f}", "Distancia (m)": f"{distancia:.1f}"
+        })
+
+mejor_tramos_df = pd.DataFrame(mejor_tramos)
+st.dataframe(mejor_tramos_df, use_container_width=True)
+
+# -------- Peor ceñida / popa --------
+st.subheader("⛵ Peor tramo de ceñida / popa de cada track")
+peor_tramos = []
+
+for i, df in enumerate(track_dfs):
+    if df.empty:
+        for tramo, rango, label in [
+            ("ceñida", (40, 70), "ceñida"),
+            ("popa", (120, 180), "Popa")
+        ]:
+            peor_tramos.append({
+                "Track": track_labels[i], "Tipo": label,
+                "TWA inicio": "-", "TWA fin": "-", "UTC inicio": "-", "UTC fin": "-",
+                "VMG promedio": "-", "Duración (s)": "-", "Distancia (m)": "-"
+            })
+        continue
+
+    for tramo, rango, label in [
+        ("ceñida", (40, 70), "ceñida"),
+        ("popa", (120, 180), "Popa")
+    ]:
+        df_rango = df[(df["TWA"].abs() >= rango[0]) & (df["TWA"].abs() <= rango[1])].reset_index(drop=True)
+        if len(df_rango) < window:
+            peor_tramos.append({
+                "Track": track_labels[i], "Tipo": label,
+                "TWA inicio": "-", "TWA fin": "-", "UTC inicio": "-", "UTC fin": "-",
+                "VMG promedio": "-", "Duración (s)": "-", "Distancia (m)": "-"
+            })
+            continue
+
+        idx_worst = -1
+        if label == "ceñida":
+            # Ceñida: buscar mínimo VMG promedio (más bajo)
+            worst_vmg = float('inf')
+            for idx in range(len(df_rango) - window + 1):
+                vmg_prom = df_rango.loc[idx:idx+window-1, "VMG"].mean()
+                if vmg_prom < worst_vmg:
+                    worst_vmg = vmg_prom
+                    idx_worst = idx
+            vmg_val = worst_vmg
+        else:
+            # Popa: buscar máximo VMG promedio (menos negativo, más cercano a cero)
+            worst_vmg = float('-inf')
+            for idx in range(len(df_rango) - window + 1):
+                vmg_prom = df_rango.loc[idx:idx+window-1, "VMG"].mean()
+                if vmg_prom > worst_vmg:
+                    worst_vmg = vmg_prom
+                    idx_worst = idx
+            vmg_val = worst_vmg
+
+        tramo_worst = df_rango.loc[idx_worst:idx_worst+window-1]
+        utc_ini_w = tramo_worst["UTC"].iloc[0]
+        utc_fin_w = tramo_worst["UTC"].iloc[-1]
+        twa_ini_w = tramo_worst["TWA"].iloc[0]
+        twa_fin_w = tramo_worst["TWA"].iloc[-1]
+        duracion_w = (pd.to_datetime(utc_fin_w) - pd.to_datetime(utc_ini_w)).total_seconds()
+        distancia_w = tramo_worst["Dist"].sum()
+
+        peor_tramos.append({
+            "Track": track_labels[i], "Tipo": label,
+            "TWA inicio": f"{twa_ini_w:.1f}", "TWA fin": f"{twa_fin_w:.1f}",
+            "UTC inicio": str(utc_ini_w), "UTC fin": str(utc_fin_w),
+            "VMG promedio": f"{vmg_val:.2f}",
+            "Duración (s)": f"{duracion_w:.1f}", "Distancia (m)": f"{distancia_w:.1f}"
+        })
+
+peor_tramos_df = pd.DataFrame(peor_tramos)
+st.dataframe(peor_tramos_df, use_container_width=True)
+
 
 
 # --- DATOS DE CONTACTO Y DISCLAIMER ---
