@@ -247,16 +247,18 @@ lat_mean = np.mean(latitudes) if latitudes else 0
 lon_mean = np.mean(longitudes) if longitudes else 0
 
 st.pydeck_chart(pdk.Deck(
-        map_style='mapbox://styles/mapbox//dark-v10',
-        initial_view_state=pdk.ViewState(
-        latitude=lat_mean,
-        longitude=lon_mean,
+    #map_style='mapbox://styles/mapbox//dark-v10',
+    map_style="mapbox://styles/mapbox/outdoors-v11",
+    #map_style=None,
+    initial_view_state=pdk.ViewState(
+        latitude= df['Lat'].mean(), #lat_mean,
+        longitude=df['Lon'].mean(), #lon_mean,
         zoom=14,
         pitch=0,
         bearing=twd
     ),
-    layers=layers,
-    tooltip={"html": "<b>SOG:</b> {SOG} knots<br><b>Hora:</b> {UTC}<br><b>COG:</b> {COG}°"},
+    layers=layers
+    #tooltip={"html": "<b>SOG:</b> {SOG} knots<br><b>Hora:</b> {UTC}<br><b>COG:</b> {COG}°"},
 ))
 
 # --- Color scale para ambos tracks ---
