@@ -18,10 +18,11 @@ Contacto / Contact:
 import streamlit as st
 import pandas as pd
 import numpy as np
-from collections import deque
 import altair as alt
 import pydeck as pdk
 
+from collections import deque
+from scipy.stats import circstd
 from utils import (
     calculate_distance_bearing,
     calculate_velocity,
@@ -647,13 +648,47 @@ else:
         st.error(f"Error en las ventanas: {e}")
         ventanas = [0]
     ventana_labels = [f"{n:+d}s" if n != 0 else "0s" for n in ventanas]
+
     tabla = []
+    t_prev = 8   # segundos antes de la maniobra para calcular SOG previa
+    t_post_max = 30  # segundos después para buscar la recuperación
+
     for idx, maniobra in maniobra_df.iterrows():
         track = maniobra["Track"]
         time = maniobra["UTC"]
         df_este_track = df_plot[df_plot["Track"] == track]
         delta_cog = ((maniobra["COG_post"] - maniobra["COG_previo"] + 180) % 360) - 180
         delta_cog = round(delta_cog, 0)
+
+        # SOG previa a la maniobra
+        rango_previo = (time - pd.Timedelta(seconds=t_prev), time)
+        sog_previa = df_este_track[
+            (df_este_track["UTC"] >= rango_previo[0]) & (df_este_track["UTC"] <= rango_previo[1])
+        ]["SOG"].mean()
+
+        # Tiempo hasta recuperar SOG previa después de la maniobra
+        tiempo_recuperacion = None
+        for t in range(1, t_post_max + 1):
+            instante = time + pd.Timedelta(seconds=t)
+            sog_inst = df_este_track[
+                (df_este_track["UTC"] >= instante - pd.Timedelta(seconds=0.5)) &
+                (df_este_track["UTC"] <= instante + pd.Timedelta(seconds=0.5))
+            ]["SOG"].mean()
+            if not np.isnan(sog_inst) and sog_inst >= sog_previa:
+                tiempo_recuperacion = t
+                break
+        if tiempo_recuperacion is None:
+            tiempo_recuperacion = t_post_max + 1  # o "No recuperada" si prefieres
+
+        fila = {
+            "Track": track,
+            "Momento": time.strftime("%H:%M:%S"),
+            #"COG previo": round(maniobra["COG_previo"], 0),
+            #"COG post": round(maniobra["COG_post"], 0),
+            #"Delta COG": delta_cog,
+            "SOG previa": f"{sog_previa:.2f}" if not np.isnan(sog_previa) else "-",
+            "Recup. SOG (s)": tiempo_recuperacion if tiempo_recuperacion <= t_post_max else "+30",
+        }
         for delta, label in zip(ventanas, ventana_labels):
             if delta == 0:
                 rango = (time - pd.Timedelta(seconds=0.5), time + pd.Timedelta(seconds=0.5))
@@ -661,31 +696,109 @@ else:
                 rango = (time + pd.Timedelta(seconds=delta), time)
             else:
                 rango = (time, time + pd.Timedelta(seconds=delta))
-            vel_media = df_este_track[
+            tramo = df_este_track[
                 (df_este_track["UTC"] >= rango[0]) & (df_este_track["UTC"] <= rango[1])
-            ]["SOG"].mean()
-            tabla.append({
+            ]
+            vel_media = tramo["SOG"].mean()
+            fila[label] = f"{vel_media:.2f}" if not np.isnan(vel_media) else "-"
+        tabla.append(fila)
+
+    columnas_finales = [
+        "Track", 
+        "Momento", 
+        #"COG previo", 
+        #"COG post", 
+        #"Delta COG",
+        "SOG previa", 
+        "Recup. SOG (s)"
+    ] + ventana_labels
+
+    tabla_df = pd.DataFrame(tabla)
+    tabla_df = tabla_df[columnas_finales]
+
+    # Resaltado visual: rápido (verde), lento/no (rojo)
+    def highlight_recup(val):
+        try:
+            if val == "No recuperada":
+                return "background-color: #FFCCCC; color: #990000"
+            v = int(val)
+            if v <= 5:
+                return "background-color: #C7FFCD; color: #005900"  # verde
+            elif v <= 15:
+                return "background-color: #FFFFD1; color: #C0A000"  # amarillo
+            else:
+                return "background-color: #FFCCCC; color: #990000"  # rojo
+        except:
+            return ""
+
+    # velocidad maniobra, recuperación
+    st.markdown("#### Tabla: velocidad media antes y después de cada maniobra y tiempo hasta recuperar SOG previa")
+    st.dataframe(
+        tabla_df.style.applymap(highlight_recup, subset=["Recup. SOG (s)"]),
+        hide_index=True,
+        use_container_width=True
+    )
+
+## ANALISIS DE TRAMOS
+def tramo_tipo_twa(twa_mean):
+    if np.isnan(twa_mean):
+        return "None"
+    abs_twa = abs(twa_mean)
+    if abs_twa < 70:
+        return "ceñida"
+    elif abs_twa > 135:
+        return "popa"
+    else:
+        return "través"
+
+
+if not maniobra_df.empty:
+    st.markdown("#### Análisis de tramos entre maniobras (SOG, COG y TWA)")
+    tramo_rows = []
+    for track in maniobra_df["Track"].unique():
+        df_track = df_plot[df_plot["Track"] == track].reset_index(drop=True)
+        maniobras_idx = maniobra_df[maniobra_df["Track"] == track]["idx"].tolist()
+        if 0 not in maniobras_idx:
+            maniobras_idx = [0] + maniobras_idx
+        if (len(df_track) - 1) not in maniobras_idx:
+            maniobras_idx.append(len(df_track) - 1)
+        maniobras_idx = sorted(set(maniobras_idx))
+        for j in range(len(maniobras_idx) - 1):
+            ini = maniobras_idx[j]
+            fin = maniobras_idx[j + 1]
+            tramo = df_track.iloc[ini:fin + 1]
+            if tramo.empty:
+                continue
+            sog_mean = tramo["SOG"].mean()
+            cog_mean = tramo["COG"].mean()
+            cog_std = circstd(tramo["COG"].dropna(), high=360, low=0)
+            twa_mean = tramo["TWA"].mean() if "TWA" in tramo else np.nan
+            tramo_tipo = tramo_tipo_twa(twa_mean)
+            utc_ini = tramo["UTC"].iloc[0]
+            utc_fin = tramo["UTC"].iloc[-1]
+            duracion = (pd.to_datetime(utc_fin) - pd.to_datetime(utc_ini)).total_seconds()
+            # Duración en mm:ss
+            minutos = int(duracion // 60)
+            segundos = int(duracion % 60)
+            duracion_str = f"{minutos:02}:{segundos:02}"
+            hora_ini = pd.to_datetime(utc_ini).strftime("%H:%M:%S")
+            hora_fin = pd.to_datetime(utc_fin).strftime("%H:%M:%S")
+            tramo_rows.append({
                 "Track": track,
-                "Momento": time.strftime("%H:%M:%S"),
-                "COG previo": round(maniobra["COG_previo"], 0),
-                "COG post": round(maniobra["COG_post"], 0),
-                "Delta COG": delta_cog,
-                label: f"{vel_media:.2f}" if not np.isnan(vel_media) else "-"
+                "Duración (mm:ss)": duracion_str,
+                "SOG prom.": f"{sog_mean:.2f}",
+                "COG prom.": f"{cog_mean:.1f}",
+                "Desvío COG": f"{cog_std:.1f}",
+                "TWA prom.": f"{twa_mean:.1f}" if not np.isnan(twa_mean) else "-",
+                "Tramo": tramo_tipo,
+                "Hora inicio": hora_ini,
+                "Hora fin": hora_fin,
             })
-
-        tabla_df = pd.DataFrame(tabla)
-        tabla_df_pivot = tabla_df.pivot_table(
-            index=["Track", "Momento", "COG previo", "COG post", "Delta COG"],
-            values=ventana_labels,
-            aggfunc='first'
-        ).reset_index()
-
-        columnas_finales = ["Track", "Momento", "COG previo", "COG post", "Delta COG"] + ventana_labels
-        tabla_df_pivot = tabla_df_pivot.reindex(columns=columnas_finales)
-
-    st.markdown("#### Tabla: velocidad media antes y después de cada maniobra (COG previo y post = media de ventana antes y después del giro)")
-    st.dataframe(tabla_df_pivot, hide_index=True, use_container_width=True)
-
+    if tramo_rows:
+        tabla_tramos = pd.DataFrame(tramo_rows)
+        st.dataframe(tabla_tramos, use_container_width=True)
+    else:
+        st.info("No hay tramos entre maniobras detectados.")
 
 # --- ANALISIS Y TABLAS BASADAS EN VMG ---
 
@@ -708,8 +821,8 @@ for i, df in enumerate(track_dfs):
     ceñida = df[(df["TWA"].abs() >= 40) & (df["TWA"].abs() <= 70)]
     vmg_cejida_prom = ceñida["VMG"].mean() if not ceñida.empty else float('nan')
 
-    # Popa: TWA >= 120°
-    popa = df[df["TWA"].abs() >= 120]
+    # Popa: TWA >= 135°
+    popa = df[df["TWA"].abs() >= 135]
     vmg_popa_prom = popa["VMG"].mean() if not popa.empty else float('nan')
 
     ranking_vmg.append({
@@ -740,25 +853,39 @@ for i, df in enumerate(track_dfs):
     if df.empty:
         for tramo, rango, label in [
             ("ceñida", (40, 70), "ceñida"),
-            ("popa", (120, 180), "Popa")
+            ("popa", (135, 180), "popa")
+            #("través",(71,134),"través")
         ]:
             mejor_tramos.append({
-                "Track": track_labels[i], "Tipo": label,
-                "TWA inicio": "-", "TWA fin": "-", "UTC inicio": "-", "UTC fin": "-",
-                "VMG promedio": "-", "Duración (s)": "-", "Distancia (m)": "-"
+                "Track": track_labels[i], 
+                "Tipo": label,
+                "TWA inicio": "-", 
+                "TWA fin": "-", 
+                "UTC inicio": "-", 
+                "UTC fin": "-",
+                "VMG promedio": "-", 
+                "Duración (s)": "-", 
+                "Distancia (m)": "-"
             })
         continue
 
     for tramo, rango, label in [
         ("ceñida", (40, 70), "ceñida"),
-        ("popa", (120, 180), "Popa")
+        ("popa", (135, 180), "popa")
+        #("través",(71,134),"través")
     ]:
         df_rango = df[(df["TWA"].abs() >= rango[0]) & (df["TWA"].abs() <= rango[1])].reset_index(drop=True)
         if len(df_rango) < window:
             mejor_tramos.append({
-                "Track": track_labels[i], "Tipo": label,
-                "TWA inicio": "-", "TWA fin": "-", "UTC inicio": "-", "UTC fin": "-",
-                "VMG promedio": "-", "Duración (s)": "-", "Distancia (m)": "-"
+                "Track": track_labels[i], 
+                "Tipo": label,
+                "TWA inicio": "-", 
+                "TWA fin": "-", 
+                "UTC inicio": "-", 
+                "UTC fin": "-",
+                "VMG promedio": "-", 
+                "Duración (s)": "-", 
+                "Distancia (m)": "-"
             })
             continue
 
@@ -791,11 +918,15 @@ for i, df in enumerate(track_dfs):
         distancia = tramo_best["Dist"].sum()
 
         mejor_tramos.append({
-            "Track": track_labels[i], "Tipo": label,
-            "TWA inicio": f"{twa_ini:.1f}", "TWA fin": f"{twa_fin:.1f}",
-            "UTC inicio": str(utc_ini), "UTC fin": str(utc_fin),
+            "Track": track_labels[i], 
+            "Tipo": label,
+            "TWA inicio": f"{twa_ini:.1f}", 
+            "TWA fin": f"{twa_fin:.1f}",
+            "UTC inicio": pd.to_datetime(utc_ini).strftime("%H:%M:%S"),
+            "UTC fin": pd.to_datetime(utc_fin).strftime("%H:%M:%S"),
             "VMG promedio": f"{vmg_val:.2f}",
-            "Duración (s)": f"{duracion:.1f}", "Distancia (m)": f"{distancia:.1f}"
+            "Duración (s)": f"{duracion:.1f}", 
+            "Distancia (m)": f"{distancia:.1f}"
         })
 
 mejor_tramos_df = pd.DataFrame(mejor_tramos)
@@ -809,25 +940,37 @@ for i, df in enumerate(track_dfs):
     if df.empty:
         for tramo, rango, label in [
             ("ceñida", (40, 70), "ceñida"),
-            ("popa", (120, 180), "Popa")
+            ("popa", (135, 180), "popa")
         ]:
             peor_tramos.append({
-                "Track": track_labels[i], "Tipo": label,
-                "TWA inicio": "-", "TWA fin": "-", "UTC inicio": "-", "UTC fin": "-",
-                "VMG promedio": "-", "Duración (s)": "-", "Distancia (m)": "-"
+                "Track": track_labels[i], 
+                "Tipo": label,
+                "TWA inicio": "-", 
+                "TWA fin": "-", 
+                "UTC inicio": "-", 
+                "UTC fin": "-",
+                "VMG promedio": "-", 
+                "Duración (s)": "-", 
+                "Distancia (m)": "-"
             })
         continue
 
     for tramo, rango, label in [
         ("ceñida", (40, 70), "ceñida"),
-        ("popa", (120, 180), "Popa")
+        ("popa", (135, 180), "popa")
     ]:
         df_rango = df[(df["TWA"].abs() >= rango[0]) & (df["TWA"].abs() <= rango[1])].reset_index(drop=True)
         if len(df_rango) < window:
             peor_tramos.append({
-                "Track": track_labels[i], "Tipo": label,
-                "TWA inicio": "-", "TWA fin": "-", "UTC inicio": "-", "UTC fin": "-",
-                "VMG promedio": "-", "Duración (s)": "-", "Distancia (m)": "-"
+                "Track": track_labels[i], 
+                "Tipo": label,
+                "TWA inicio": "-", 
+                "TWA fin": "-", 
+                "UTC inicio": "-", 
+                "UTC fin": "-",
+                "VMG promedio": "-", 
+                "Duración (s)": "-", 
+                "Distancia (m)": "-"
             })
             continue
 
@@ -860,17 +1003,19 @@ for i, df in enumerate(track_dfs):
         distancia_w = tramo_worst["Dist"].sum()
 
         peor_tramos.append({
-            "Track": track_labels[i], "Tipo": label,
-            "TWA inicio": f"{twa_ini_w:.1f}", "TWA fin": f"{twa_fin_w:.1f}",
-            "UTC inicio": str(utc_ini_w), "UTC fin": str(utc_fin_w),
+            "Track": track_labels[i], 
+            "Tipo": label,
+            "TWA inicio": f"{twa_ini_w:.1f}", 
+            "TWA fin": f"{twa_fin_w:.1f}",
+            "UTC inicio": pd.to_datetime(utc_ini_w).strftime("%H:%M:%S"),
+            "UTC fin": pd.to_datetime(utc_fin_w).strftime("%H:%M:%S"),
             "VMG promedio": f"{vmg_val:.2f}",
-            "Duración (s)": f"{duracion_w:.1f}", "Distancia (m)": f"{distancia_w:.1f}"
+            "Duración (s)": f"{duracion_w:.1f}", 
+            "Distancia (m)": f"{distancia_w:.1f}"
         })
 
 peor_tramos_df = pd.DataFrame(peor_tramos)
 st.dataframe(peor_tramos_df, use_container_width=True)
-
-
 
 # --- DATOS DE CONTACTO Y DISCLAIMER ---
 st.markdown("""
