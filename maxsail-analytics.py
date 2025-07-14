@@ -56,20 +56,29 @@ if not uploaded_files:
 
     ### Características principales / Main features
 
-    - Visualización de tracks en mapa interactivo. / *Interactive track display on a map.*
-    - Comparación de dos recorridos lado a lado. / *Side-by-side comparison of two routes.*
-    - Análisis de velocidad, rumbo, TWA, VMG y distancia recorrida. / *Analysis of speed, heading (COG), TWA, VMG, and distance sailed.*
-    - Detección automática de maniobras (viradas/trasluchadas). / *Automatic maneuver detection (tacks/gybes).*
-    - Cálculo y visualización de métricas clave. / *Calculation and visualization of key metrics.*
-    - Compatible con archivos GPX y CSV normalizados. / *Compatible with normalized GPX and CSV files.*
-    - Interfaz intuitiva, lista para compartir con la flota. / *Intuitive interface, ready to share with your fleet.*
-    - **Open source y multiplataforma.** / ***Open source and cross-platform.***
+    - Visualización de tracks en mapa interactivo.  
+    *Interactive track display on a map.*
+    - Comparación de dos recorridos lado a lado.  
+    *Side-by-side comparison of two routes.*
+    - Análisis de velocidad, rumbo, TWA, VMG y distancia recorrida.  
+    *Analysis of speed, heading (COG), TWA, VMG, and distance sailed.*
+    - Detección automática de maniobras (viradas/trasluchadas).  
+    *Automatic maneuver detection (tacks/gybes).*
+    - Cálculo y visualización de métricas clave.  
+    *Calculation and visualization of key metrics.*
+    - Compatible con archivos GPX y CSV normalizados.  
+    *Compatible with normalized GPX and CSV files.*
+    - Interfaz intuitiva, lista para compartir con la flota.  
+    *Intuitive interface, ready to share with your fleet.*
+    - **Open source y multiplataforma.**  
+    ***Open source and cross-platform.***
 
     ---
 
     ### Formato esperado del archivo CSV / Expected CSV format
 
-    El visor requiere archivos CSV normalizados con al menos estas columnas: / *The viewer requires normalized CSV files with at least these columns:*
+    El visor requiere archivos CSV normalizados con al menos estas columnas:  
+    *The viewer requires normalized CSV files with at least these columns:*
 
     - **Lat, Lon, UTC, COG, SOG, Dist, SourceFile (optional)** [more info](https://github.com/maxsail-project/maxsail-analytics/blob/main/README.md#formato-esperado-del-archivo-csv--expected-csv-format)
 
@@ -83,9 +92,10 @@ if not uploaded_files:
 
     ---
 
-    *Este proyecto es open source, ¡colaboraciones y sugerencias bienvenidas!* / *This project is open source — contributions and feedback are welcome!*
+    *Este proyecto es open source, ¡colaboraciones y sugerencias bienvenidas!*  
+    *This project is open source — contributions and feedback are welcome!*
 
-    © 2024-2025 Maximiliano Mannise / maxSail-project
+    © 2024-2025 Maximiliano Mannise / maxsail-project
     """)
     st.stop()
 
