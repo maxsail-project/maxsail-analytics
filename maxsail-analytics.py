@@ -817,6 +817,9 @@ if not maniobra_df.empty:
     if tramo_rows:
         tabla_tramos = pd.DataFrame(tramo_rows)
         st.dataframe(tabla_tramos, use_container_width=True)
+        st.caption("""
+            **Desvío COG** indica la variabilidad del rumbo (COG) durante el tramo. Un valor bajo significa que el barco mantuvo un rumbo muy estable; un valor alto indica cambios frecuentes de rumbo, zigzags o maniobras.
+            """)
     else:
         st.info("No hay tramos entre maniobras detectados.")
 
