@@ -4,7 +4,7 @@
 # maxSail-analytics
 **Sailing Data, Better Decisions**
 
-[maxSail-analytics](https://maxsail-analytics.streamlit.app/) Access the Streamlit App
+[maxSail-analytics](https://maxsail-analytics.streamlit.app/) Open in Streamlit!
 
 Puedes descargar los GPX de este repo para hacer pruebas o mejor aún: usar los tuyos.\
 You can download the GPX files from this repo for testing, or even better: use your own.
