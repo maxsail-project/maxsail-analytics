@@ -755,7 +755,7 @@ else:
     st.markdown("#### Tabla: velocidad media antes y después de cada maniobra y tiempo hasta recuperar SOG previa")
     st.dataframe(
         tabla_df.style.applymap(highlight_recup, subset=["Recup. SOG (s)"]),
-        hide_index=True,
+        hide_index=False,
         use_container_width=True
     )
 
@@ -816,7 +816,7 @@ if not maniobra_df.empty:
             })
     if tramo_rows:
         tabla_tramos = pd.DataFrame(tramo_rows)
-        st.dataframe(tabla_tramos, use_container_width=True)
+        st.dataframe(tabla_tramos, hide_index=False, use_container_width=True)
         st.caption("""
             **Desvío COG** indica la variabilidad del rumbo (COG) durante el tramo. Un valor bajo significa que el barco mantuvo un rumbo muy estable; un valor alto indica cambios frecuentes de rumbo, zigzags o maniobras.
             """)
