@@ -424,7 +424,7 @@ for track_label, track_df in zip(track_labels, track_dfs):
         cog_min = f"{track_df['COG'].min():.1f}"
         cog_max = f"{track_df['COG'].max():.1f}"
         cog_avg = f"{track_df['COG'].mean():.1f}"
-        cog_std = f"{track_df['COG'].std():.1f}"
+        cog_std = f"{circstd(track_df['COG'].dropna(), high=360, low=0):.1f}"
     else:
         cog_min = cog_max = cog_avg = cog_std = "-"
     cog_data[track_label] = [cog_min, cog_max, cog_avg, cog_std]
