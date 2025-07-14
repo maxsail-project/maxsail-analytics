@@ -99,8 +99,8 @@ The viewer expects normalized CSV files with at least the following columns:
 
 | Columna / Column | Descripción / Description                                           | Ejemplo / Example        |
 | ---------------- | ------------------------------------------------------------------- | ------------------------ |
-| Lat              | Latitud (decimal, WGS84) / Latitude (decimal)                       | -34.912345               |
-| Lon              | Longitud (decimal, WGS84) / Longitude (decimal)                     | -56.163421               |
+| Lat              | Latitud (decimal, WGS84) / Latitude (decimal)                       | −34.945917               |
+| Lon              | Longitud (decimal, WGS84) / Longitude (decimal)                     | −55.932721               |
 | UTC              | Fecha y hora UTC / UTC datetime (ISO 8601 or YYYY-MM-DD HH\:MM\:SS) | 2024-06-27 14:23:15      |
 | COG              | Rumbo sobre el fondo (°) / Course Over Ground                       | 89.0                     |
 | SOG              | Velocidad sobre el fondo / Speed Over Ground (knots)                | 5.33                     |
