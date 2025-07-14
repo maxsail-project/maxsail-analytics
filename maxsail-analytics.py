@@ -46,58 +46,58 @@ uploaded_files = st.sidebar.file_uploader(
 
 if not uploaded_files:
     st.info("Sube al menos un archivo GPX o CSV para comenzar.")
-st.markdown("""
+    st.markdown("""
 
-**maxSail-analytics** es una herramienta open source para visualizar, analizar y comparar tracks GPS de regatas y entrenamientos de vela. Permite cargar archivos GPX o CSV, mostrar recorridos en mapa, comparar dos tracks, analizar métricas clave y detectar maniobras, todo de forma sencilla y colaborativa.
+    **maxSail-analytics** es una herramienta open source para visualizar, analizar y comparar tracks GPS de regatas y entrenamientos de vela. Permite cargar archivos GPX o CSV, mostrar recorridos en mapa, comparar dos tracks, analizar métricas clave y detectar maniobras, todo de forma sencilla y colaborativa.
 
-**maxSail-analytics** is an open source tool to visualize, analyze and compare GPS tracks from sailing races and training. You can load GPX or CSV files, display tracks on an interactive map, compare two routes, analyze key metrics, and detect maneuvers—everything simply and collaboratively.
+    **maxSail-analytics** is an open source tool to visualize, analyze and compare GPS tracks from sailing races and training. You can load GPX or CSV files, display tracks on an interactive map, compare two routes, analyze key metrics, and detect maneuvers—everything simply and collaboratively.
 
----
+    ---
 
-### Características principales / Main features
+    ### Características principales / Main features
 
-- Visualización de tracks en mapa interactivo.  
-  *Interactive track display on a map.*
-- Comparación de dos recorridos lado a lado.  
-  *Side-by-side comparison of two routes.*
-- Análisis de velocidad, rumbo, TWA, VMG y distancia recorrida.  
-  *Analysis of speed, heading (COG), TWA, VMG, and distance sailed.*
-- Detección automática de maniobras (viradas/trasluchadas).  
-  *Automatic maneuver detection (tacks/gybes).*
-- Cálculo y visualización de métricas clave.  
-  *Calculation and visualization of key metrics.*
-- Compatible con archivos GPX y CSV normalizados.  
-  *Compatible with normalized GPX and CSV files.*
-- Interfaz intuitiva, lista para compartir con la flota.  
-  *Intuitive interface, ready to share with your fleet.*
-- **Open source y multiplataforma.**  
-  ***Open source and cross-platform.***
+    - Visualización de tracks en mapa interactivo.  
+    *Interactive track display on a map.*
+    - Comparación de dos recorridos lado a lado.  
+    *Side-by-side comparison of two routes.*
+    - Análisis de velocidad, rumbo, TWA, VMG y distancia recorrida.  
+    *Analysis of speed, heading (COG), TWA, VMG, and distance sailed.*
+    - Detección automática de maniobras (viradas/trasluchadas).  
+    *Automatic maneuver detection (tacks/gybes).*
+    - Cálculo y visualización de métricas clave.  
+    *Calculation and visualization of key metrics.*
+    - Compatible con archivos GPX y CSV normalizados.  
+    *Compatible with normalized GPX and CSV files.*
+    - Interfaz intuitiva, lista para compartir con la flota.  
+    *Intuitive interface, ready to share with your fleet.*
+    - **Open source y multiplataforma.**  
+    ***Open source and cross-platform.***
 
----
+    ---
 
-### Formato esperado del archivo CSV / Expected CSV format
+    ### Formato esperado del archivo CSV / Expected CSV format
 
-El visor requiere archivos CSV normalizados con al menos estas columnas:  
-*The viewer requires normalized CSV files with at least these columns:*
+    El visor requiere archivos CSV normalizados con al menos estas columnas:  
+    *The viewer requires normalized CSV files with at least these columns:*
 
-- **Lat, Lon, UTC, COG, SOG, Dist, SourceFile (optional)** [more info](https://github.com/maxsail-project/maxsail-analytics/blob/main/README.md#formato-esperado-del-archivo-csv--expected-csv-format)
+    - **Lat, Lon, UTC, COG, SOG, Dist, SourceFile (optional)** [more info](https://github.com/maxsail-project/maxsail-analytics/blob/main/README.md#formato-esperado-del-archivo-csv--expected-csv-format)
 
----
+    ---
 
-### Contacto / Contact
+    ### Contacto / Contact
 
-- Nombre / Name: Maximiliano Mannise  
-- Email: maxsail.project@gmail.com  
-- GitHub: https://github.com/maxsail-project/maxsail-analytics  
+    - Nombre / Name: Maximiliano Mannise  
+    - Email: maxsail.project@gmail.com  
+    - GitHub: https://github.com/maxsail-project/maxsail-analytics  
 
----
+    ---
 
-*Este proyecto es open source, ¡colaboraciones y sugerencias bienvenidas!*  
-*This project is open source — contributions and feedback are welcome!*
+    *Este proyecto es open source, ¡colaboraciones y sugerencias bienvenidas!*  
+    *This project is open source — contributions and feedback are welcome!*
 
-© 2024-2025 Maximiliano Mannise / maxsail-project
-""")
-st.stop()
+    © 2024-2025 Maximiliano Mannise / maxsail-project
+    """)
+    st.stop()
 
 
 dfs = []
