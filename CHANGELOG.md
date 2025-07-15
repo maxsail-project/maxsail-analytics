@@ -5,7 +5,7 @@ All new features, changes, and fixes for **maxSail-analytics** will be listed he
 
 ---
 
-## [v1.0.0] - PMV / MVP - 2024-07-15
+## [v1.0.0] - versión incial - PMV / MVP - 2024-07-15
 
 ### Español 🇪🇸
 
