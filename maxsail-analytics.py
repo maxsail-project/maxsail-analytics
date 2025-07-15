@@ -312,15 +312,19 @@ else:
 # ----------------------------
 # --- MÉTRICAS PRINCIPALES ---
 # ----------------------------
-st.subheader("📊 Métricas principales")
+st.subheader("📊 Métricas principales del tramo")
 
 metrics = [
+    ("TWD* (°)", lambda df: f"{twd:.0f}" if twd is not None else "-"),
     ("SOG promedio (knots)", lambda df: f"{df['SOG'].mean():.2f}" if not df.empty else "-"),
     ("SOG máxima (knots)", lambda df: f"{df['SOG'].max():.2f}" if not df.empty else "-"),
-    ("TWA medio* (°)", lambda df: f"{df['TWA'].mean():.1f}" if not df.empty else "-"),
-    ("VMG promedio (knots)", lambda df: f"{df['VMG'].mean():.2f}" if not df.empty else "-"),
+    ("TWA* medio (°)", lambda df: f"{df['TWA'].mean():.1f}" if not df.empty else "-"),
+    ("VMG* promedio (knots)", lambda df: f"{df['VMG'].mean():.2f}" if not df.empty else "-"),
     ("Distancia (nm)", lambda df: f"{df['Dist'].sum() / 1852:.2f}" if not df.empty else "-"),
-    ("Duración (min)", lambda df: f"{(df['UTC'].iloc[-1] - df['UTC'].iloc[0]).total_seconds()/60:.1f}" if not df.empty and len(df) > 1 else "-"),
+    ("Duración (HH:MM:SS)", lambda df: (
+        str(pd.to_timedelta((df['UTC'].iloc[-1] - df['UTC'].iloc[0]).total_seconds(), unit='s')).split('.')[0].replace('0 days ', '')
+        if not df.empty and len(df) > 1 else "-"
+    )),
 ]
 
 track_dfs = []
