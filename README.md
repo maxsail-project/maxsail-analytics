@@ -21,6 +21,7 @@ You can download the GPX files from this repo for testing, or even better: use y
   - [Uso básico / Basic usage](#uso-básico--basic-usage)
   - [Formato esperado del archivo CSV / Expected CSV format](#formato-esperado-del-archivo-csv--expected-csv-format)
   - [Sobre el autor / About the author](#sobre-el-autor--about-the-author)
+  - [Wiki](#wiki)
   - [Contacto / Contact](#contacto--contact)
   - [Aviso legal / Disclaimer](#aviso-legal--disclaimer)
   - [Licencia / License](#licencia--license)
@@ -128,6 +129,10 @@ This project is meant for basic GPX-based analysis, but it can easily be extende
 **¡Nos vemos en el agua!**\
 **Any contribution, improvement request, or feedback is welcome.**\
 **See you on the water!**
+
+## Wiki
+
+- [Wiki maxSail-analytics by DeepWiki](https://deepwiki.com/maxsail-project/maxsail-analytics)
 
 ## Contacto / Contact
 
