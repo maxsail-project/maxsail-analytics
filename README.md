@@ -116,7 +116,7 @@ The viewer expects normalized CSV files with at least the following columns:
 
 ## Sobre el autor / About the author
 
-¡Hola! Soy Maximiliano Mannise, ingeniero en informática (trabajando desde 1998), fanático de los datos, indicadores y métricas. Navego desde hace más de 20 años: primero por diversión, luego en regatas de crucero y desde 2020 en vela ligera clase Snipe.
+¡Hola! Soy Maximiliano Mannise, ingeniero en informática (trabajando desde 1998), fanático de los datos, indicadores y métricas. Navego desde hace más de 20 años: primero por diversión, luego en regatas de crucero y desde 2020 en vela ligera clase Snipe. 
 Por deformación profesional, suelo llevar todo al terreno analítico. Aunque existen software muy profesionales para análisis de datos de navegación, buscaba una herramienta **simple, personal, rápida de usar**... y de repente me encontré desarrollando esta aplicación, que ahora comparto con otros regatistas. ¡Estoy seguro de que no soy el único que disfruta mirar los datos después de cada regata! 
 Si bien está pensado para analizar información básica a partir de un GPX, se puede extender a análisis más completos con CSV que contengan más variables... algo de eso ya estoy preparando.
 
