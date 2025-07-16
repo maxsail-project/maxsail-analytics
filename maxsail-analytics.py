@@ -39,7 +39,7 @@ st.set_page_config(page_title="maxSail-analytics: Visor de regata GPX/CSV", layo
 st.title("🚩 maxSail : Sailing Data, Better Decisions")
 
 uploaded_files = st.sidebar.file_uploader(
-    "Selecciona uno o más archivos GPX o CSV", 
+    "📂 Selecciona uno o más archivos GPX o CSV", 
     type=["gpx", "csv"], 
     accept_multiple_files=True
 )

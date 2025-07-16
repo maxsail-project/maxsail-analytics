@@ -9,7 +9,7 @@ st.set_page_config(page_title="maxSail GPX Cutter", layout="wide")
 st.title("⛵ maxSail GPX Cutter")
 
 # --- Sidebar: subir archivo GPX ---
-uploaded_file = st.sidebar.file_uploader("📂 Subí tu archivo GPX", type="gpx")
+uploaded_file = st.sidebar.file_uploader("📂 Selecciona un archivos GPX", type="gpx")
 
 # --- Funciones ---
 def gpx_to_df(gpx):
