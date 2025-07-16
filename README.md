@@ -1,23 +1,26 @@
-
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://maxsail-analytics.streamlit.app/)
+[![Open GPX Cutter](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://maxsail-gpx-cutter.streamlit.app/)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/maxsail-project/maxsail-analytics)
 
-# maxSail-analytics
+# maxSail-analytics & maxSail GPX Cutter
+
 **Sailing Data, Better Decisions**
 
-[maxSail-analytics](https://maxsail-analytics.streamlit.app/) Open in Streamlit!
+[maxSail-analytics](https://maxsail-analytics.streamlit.app/) · [maxSail GPX Cutter](https://maxsail-gpx-cutter.streamlit.app/)
 
-Puedes descargar los GPX de este repo para hacer pruebas o mejor aún: usar los tuyos.\
+Puedes descargar los GPX de este repo para hacer pruebas o mejor aún: usar los tuyos.  
 You can download the GPX files from this repo for testing, or even better: use your own.
 
 ---
 
 ## Índice / Table of Contents
 
-- [maxSail-analytics](#maxsail-analytics)
+- [maxSail-analytics \& maxSail GPX Cutter](#maxsail-analytics--maxsail-gpx-cutter)
   - [Índice / Table of Contents](#índice--table-of-contents)
-  - [Descripción / Description](#descripción--description)
-  - [Características principales / Main features](#características-principales--main-features)
+  - [Descripción general / Overview](#descripción-general--overview)
+  - [maxSail-analytics](#maxsail-analytics)
+    - [Características principales / Main features](#características-principales--main-features)
+  - [maxSail GPX Cutter](#maxsail-gpx-cutter)
   - [Instalación / Installation](#instalación--installation)
   - [Uso básico / Basic usage](#uso-básico--basic-usage)
   - [Formato esperado del archivo CSV / Expected CSV format](#formato-esperado-del-archivo-csv--expected-csv-format)
@@ -30,38 +33,60 @@ You can download the GPX files from this repo for testing, or even better: use y
 
 ---
 
-## Descripción / Description
+## Descripción general / Overview
 
-**maxSail-analytics** es una herramienta open source para visualizar, analizar y comparar tracks GPS de regatas y entrenamientos de vela.\
+**maxSail-analytics** y **maxSail GPX Cutter** son herramientas open source para visualizar, analizar, comparar y limpiar tracks GPS de regatas y entrenamientos de vela ligera y crucero.
+
+- **maxSail-analytics:** Análisis, visualización y comparación avanzada de tracks GPX/CSV.
+- **maxSail GPX Cutter:** Recorta tramos de tus tracks GPX de forma visual y sencilla, para limpiar y exportar solo lo que te interesa.
+
+---
+
+## maxSail-analytics
+
+[maxSail-analytics en Streamlit](https://maxsail-analytics.streamlit.app/)
+
+**maxSail-analytics** es una herramienta open source para visualizar, analizar y comparar tracks GPS de regatas y entrenamientos de vela.  
 Permite cargar archivos GPX o CSV, mostrar recorridos en un mapa interactivo, comparar dos tracks, analizar métricas clave (velocidad, distancia, rumbo, tiempo) y detectar maniobras de forma sencilla, visual y colaborativa.
 
-**maxSail-analytics** is an open-source tool for visualizing, analyzing, and comparing GPS tracks from sailing races and training sessions.\
-It allows you to upload GPX or CSV files, display routes on an interactive map, compare two tracks, analyze key metrics (speed, distance, heading, time), and detect maneuvers in a simple, visual, and collaborative way.
+### Características principales / Main features
 
-## Características principales / Main features
-
-- Visualización de tracks en mapa interactivo.\
+- Visualización de tracks en mapa interactivo.  
   Interactive map track visualization.
-- Comparación de dos recorridos lado a lado.\
+- Comparación de dos recorridos lado a lado.  
   Side-by-side track comparison.
-- Análisis de velocidad, rumbo, TWA, VMG y distancia recorrida.\
+- Análisis de velocidad, rumbo, TWA, VMG y distancia recorrida.  
   Analysis of speed, heading, TWA, VMG, and distance.
-- Detección automática de maniobras (tacks/gybes).\
+- Detección automática de maniobras (tacks/gybes).  
   Automatic tack/gybe detection.
-- Cálculo y visualización de métricas clave.\
+- Cálculo y visualización de métricas clave.  
   Key metric calculation and display.
-- Compatible con archivos GPX y CSV normalizados.\
+- Compatible con archivos GPX y CSV normalizados.  
   Compatible with GPX and normalized CSV files.
-- Interfaz intuitiva y lista para compartir con la flota.\
+- Interfaz intuitiva y lista para compartir con la flota.  
   Intuitive UI, ready to share with your fleet.
-- **Open source y multiplataforma**.\
+- **Open source y multiplataforma**.  
   **Open source and cross-platform**.
+
+---
+
+## maxSail GPX Cutter
+
+[![Abrir en Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://maxsail-gpx-cutter.streamlit.app/)
+
+**maxSail GPX Cutter** es un utilitario open source que te permite recortar tramos de tus archivos GPX de forma visual e interactiva, pensado para regatistas y navegantes que quieren analizar sólo los tramos relevantes de su track (por ejemplo, eliminando la ida o el regreso a puerto).
+
+> [¡Probar ahora en Streamlit!](https://maxsail-gpx-cutter.streamlit.app/)
+
+---
 
 ## Instalación / Installation
 
-Versión on-line / Online version: [https://maxsail-analytics.streamlit.app/](https://maxsail-analytics.streamlit.app/)
+Versión on-line / Online versions:  
+- [https://maxsail-analytics.streamlit.app/](https://maxsail-analytics.streamlit.app/)  
+- [https://maxsail-gpx-cutter.streamlit.app/](https://maxsail-gpx-cutter.streamlit.app/)
 
-Si quieres usar la aplicación en local sigue estos pasos:\
+Si quieres usar la aplicación en local sigue estos pasos:  
 If you want to use the app locally, follow these steps:
 
 1. Clona el repositorio / Clone the repository:
@@ -82,6 +107,9 @@ If you want to use the app locally, follow these steps:
 ```sh
    streamlit run maxsail-analytics.py
 ```
+
+Para el cutter, cambia el nombre por el de maxsail-gpx-cutter.py
+For the cutter, use maxsail-gpx-cutter.py as the filename.
 
 ## Uso básico / Basic usage
 
@@ -162,4 +190,3 @@ Improvements, suggestions and forks are welcome!
 
 Si quieres reportar un bug, proponer una mejora o colaborar, abre un "issue" o un "pull request" en este repositorio.\
 If you'd like to report a bug, suggest an enhancement or contribute, please open an issue or pull request in this repository.
-
