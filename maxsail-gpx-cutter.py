@@ -9,7 +9,7 @@ st.set_page_config(page_title="maxSail GPX Cutter", layout="wide")
 st.title("⛵ maxSail GPX Cutter")
 
 # --- Sidebar: subir archivo GPX ---
-uploaded_file = st.sidebar.file_uploader("📂 Selecciona un archivos GPX", type="gpx")
+uploaded_file = st.sidebar.file_uploader("📂 Selecciona un archivo GPX", type="gpx")
 
 # --- Funciones ---
 def gpx_to_df(gpx):
@@ -97,14 +97,18 @@ if uploaded_file:
     # --- Panel principal: información del track ---
     st.header("🧭 Información del track original")
     meta = get_gpx_metadata(gpx, df)
-    meta["Archivo original"] = uploaded_file.name  # <-- nombre del archivo subido
+    meta["Archivo original"] = uploaded_file.name
     meta_df = pd.DataFrame([meta]).T
     meta_df.columns = ['Valor']
     st.table(meta_df)
 
+    # --- Recorte según tramo seleccionado ---
+    df_recorte = filtrar_por_minuto(df, start_min, end_min)
 
-    # --- Mapa del track completo (sin tiles) ---
-    st.subheader("🗺️ Vista previa del track completo")
+    # --- Mapa combinado: track original + track recortado ---
+    st.subheader("🗺️ Visualización comparada: original (gris) y recorte (rojo)")
+
+    # Track original (gris)
     line_data_full = []
     for i in range(1, len(df)):
         p1 = df.iloc[i - 1]
@@ -112,89 +116,102 @@ if uploaded_file:
         line_data_full.append({
             "from": [p1['lon'], p1['lat']],
             "to": [p2['lon'], p2['lat']],
-            "color": [0, 100, 255]
+            "color": [160, 160, 160]  # gris
         })
-    layers_full = [
-        pdk.Layer('LineLayer',
+
+    # Track recortado (rojo)
+    line_data_rec = []
+    if not df_recorte.empty:
+        for i in range(1, len(df_recorte)):
+            p1 = df_recorte.iloc[i - 1]
+            p2 = df_recorte.iloc[i]
+            line_data_rec.append({
+                "from": [p1['lon'], p1['lat']],
+                "to": [p2['lon'], p2['lat']],
+                "color": [220, 20, 60]  # rojo fuerte
+            })
+
+    layers = [
+        pdk.Layer(
+            'LineLayer',
             data=line_data_full,
             get_source_position='from',
             get_target_position='to',
             get_color='color',
-            get_width=3
-        ),
-        pdk.Layer('ScatterplotLayer',
-            data=[{"lat": df.iloc[0]['lat'], "lon": df.iloc[0]['lon']}],
-            get_position='[lon, lat]',
-            get_color='[0, 255, 0]',  # verde: inicio
-            get_radius=20
-        ),
-        pdk.Layer('ScatterplotLayer',
-            data=[{"lat": df.iloc[-1]['lat'], "lon": df.iloc[-1]['lon']}],
-            get_position='[lon, lat]',
-            get_color='[255, 0, 0]',  # rojo: fin
-            get_radius=20
+            get_width=3,
+            pickable=False,
+            name="Track original"
         )
     ]
-    st.pydeck_chart(pdk.Deck(
-        #map_style=None,
-        map_style="mapbox://styles/mapbox/outdoors-v11",
-        initial_view_state=pdk.ViewState(
-            latitude=df['lat'].mean(),
-            longitude=df['lon'].mean(),
-            zoom=13,
-            pitch=0,
-        ),
-        layers=layers_full
-    ))
-
-    # --- Recorte según tramo seleccionado ---
-    df_recorte = filtrar_por_minuto(df, start_min, end_min)
-
-    # --- Mapa del track recortado ---
-    st.subheader("✂️ Track recortado (previo a exportar)")
-    if not df_recorte.empty:
-        line_data = []
-        for i in range(1, len(df_recorte)):
-            p1 = df_recorte.iloc[i - 1]
-            p2 = df_recorte.iloc[i]
-            line_data.append({
-                "from": [p1['lon'], p1['lat']],
-                "to": [p2['lon'], p2['lat']],
-                "color": [255, 100, 0]
-            })
-        layers = [
-            pdk.Layer('LineLayer',
-                data=line_data,
+    if line_data_rec:
+        layers.append(
+            pdk.Layer(
+                'LineLayer',
+                data=line_data_rec,
                 get_source_position='from',
                 get_target_position='to',
                 get_color='color',
-                get_width=3
-            ),
+                get_width=4,
+                pickable=False,
+                name="Track recortado"
+            )
+        )
+        # Puntos de inicio y fin del recorte
+        layers += [
             pdk.Layer('ScatterplotLayer',
                 data=[{"lat": df_recorte.iloc[0]['lat'], "lon": df_recorte.iloc[0]['lon']}],
                 get_position='[lon, lat]',
-                get_color='[0, 255, 0]',  # verde: inicio
-                get_radius=20
+                get_color='[0, 255, 0]',  # verde: inicio recorte
+                get_radius=30
             ),
             pdk.Layer('ScatterplotLayer',
                 data=[{"lat": df_recorte.iloc[-1]['lat'], "lon": df_recorte.iloc[-1]['lon']}],
                 get_position='[lon, lat]',
-                get_color='[255, 0, 0]',  # rojo: fin
-                get_radius=20
+                get_color='[255, 0, 0]',  # rojo: fin recorte
+                get_radius=30
             )
         ]
-        st.pydeck_chart(pdk.Deck(
-            #map_style=None,
-             map_style="mapbox://styles/mapbox/outdoors-v11",
-            initial_view_state=pdk.ViewState(
-                latitude=df_recorte['lat'].mean(),
-                longitude=df_recorte['lon'].mean(),
-                zoom=13,
-                pitch=0
-            ),
-            layers=layers
-        ))
-        # --- Información básica del recorte ---
+
+    # Centro del mapa
+    lat_center = df_recorte['lat'].mean() if not df_recorte.empty else df['lat'].mean()
+    lon_center = df_recorte['lon'].mean() if not df_recorte.empty else df['lon'].mean()
+
+    # Leyenda manual
+    st.markdown("""
+    <div style='display:flex;gap:30px;align-items:center;font-size:16px;'>
+      <span style='display:inline-flex;align-items:center;'>
+        <span style='display:inline-block;width:30px;height:6px;background:#a0a0a0;margin-right:8px;'></span>
+        Track original
+      </span>
+      <span style='display:inline-flex;align-items:center;'>
+        <span style='display:inline-block;width:30px;height:6px;background:#dc143c;margin-right:8px;'></span>
+        Track recortado
+      </span>
+      <span style='display:inline-flex;align-items:center;'>
+        <span style='display:inline-block;width:16px;height:16px;background:#00ff00;border-radius:50%;margin-right:4px;'></span>
+        Inicio recorte
+      </span>
+      <span style='display:inline-flex;align-items:center;'>
+        <span style='display:inline-block;width:16px;height:16px;background:#ff0000;border-radius:50%;margin-right:4px;'></span>
+        Fin recorte
+      </span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.pydeck_chart(pdk.Deck(
+        map_style="mapbox://styles/mapbox/outdoors-v11",
+        initial_view_state=pdk.ViewState(
+            latitude=lat_center,
+            longitude=lon_center,
+            zoom=13,
+            pitch=0,
+        ),
+        layers=layers
+    ))
+
+    # --- Información básica del recorte ---
+    st.subheader("✂️ Info del tramo recortado")
+    if not df_recorte.empty:
         st.markdown(f"**Inicio recorte:** {df_recorte['time'].iloc[0]}")
         st.markdown(f"**Fin recorte:** {df_recorte['time'].iloc[-1]}")
         st.markdown(f"**Cantidad de puntos:** {len(df_recorte)}")
@@ -204,7 +221,6 @@ if uploaded_file:
 
     # --- Input de nombre de archivo destino y exportar ---
     st.subheader("💾 Exportar GPX recortado")
-    # Suponiendo que 'uploaded_file.name' tiene el nombre original
     base_name = os.path.splitext(uploaded_file.name)[0] if uploaded_file else "recorte-maxsail"
     file_name = st.text_input("Nombre del archivo a guardar (sin extensión)", value=f"{base_name}-recorte")
     if not df_recorte.empty:
