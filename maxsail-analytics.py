@@ -20,6 +20,7 @@ import pandas as pd
 import numpy as np
 import altair as alt
 import pydeck as pdk
+import requests
 
 from collections import deque
 from scipy.stats import circstd
@@ -29,6 +30,8 @@ from utils import (
     estimate_twa,
     calculate_vmg,
     estimate_wind_direction,
+    distance_on_ladder,
+    distance_on_axis, 
     gpx_file_to_df
 )
 
@@ -224,6 +227,23 @@ if df1.empty and df2.empty:
     st.stop()
 
 # --- MAPA ---
+
+mapbox_token = st.secrets.get("mapbox", {}).get("token", None)
+if mapbox_token and isinstance(mapbox_token, str) and mapbox_token.strip():
+    pdk.settings.mapbox_api_key = mapbox_token
+    st.text(f"Token activo: {pdk.settings.mapbox_api_key is not None}")
+
+def token_es_valido(token):
+    style_url = f"https://api.mapbox.com/styles/v1/mapbox/streets-v11?access_token={token}"
+    resp = requests.get(style_url)
+    return resp.status_code == 200
+
+mapbox_token = st.secrets.get("mapbox", {}).get("token", "").strip()
+if token_es_valido(mapbox_token):
+    pdk.settings.mapbox_api_key = mapbox_token
+else:
+    st.text("Token mapbox inválido.")
+
 st.subheader("📍 Mapa - visualización de tracks")
 layers = []
 if not df1.empty:
@@ -237,9 +257,9 @@ if not df1.empty:
             "color": [0, 100, 255]
         })
     layers += [
-        pdk.Layer('LineLayer', data=line_data1, get_source_position='from', get_target_position='to', get_color='color', get_width=3),
-        pdk.Layer('ScatterplotLayer', data=[{"Latitude": df1.iloc[0]['Lat'], "Longitude": df1.iloc[0]['Lon']}], get_position='[Longitude, Latitude]', get_color='[0, 255, 0]', get_radius=15),
-        pdk.Layer('ScatterplotLayer', data=[{"Latitude": df1.iloc[-1]['Lat'], "Longitude": df1.iloc[-1]['Lon']}], get_position='[Longitude, Latitude]', get_color='[255, 0, 0]', get_radius=15)
+        pdk.Layer('LineLayer', data=line_data1, get_source_position='from', get_target_position='to', get_color='color', get_width=4),
+        pdk.Layer('ScatterplotLayer', data=[{"Latitude": df1.iloc[0]['Lat'], "Longitude": df1.iloc[0]['Lon']}], get_position='[Longitude, Latitude]', get_color='[0, 0, 0]', get_radius=3),
+        pdk.Layer('ScatterplotLayer', data=[{"Latitude": df1.iloc[-1]['Lat'], "Longitude": df1.iloc[-1]['Lon']}], get_position='[Longitude, Latitude]', get_color='[0, 100, 255]', get_radius=3)
     ]
 if not df2.empty:
     line_data2 = []
@@ -252,9 +272,9 @@ if not df2.empty:
             "color": [255, 100, 0]
         })
     layers += [
-        pdk.Layer('LineLayer', data=line_data2, get_source_position='from', get_target_position='to', get_color='color', get_width=2),
-        pdk.Layer('ScatterplotLayer', data=[{"Latitude": df2.iloc[0]['Lat'], "Longitude": df2.iloc[0]['Lon']}], get_position='[Longitude, Latitude]', get_color='[0, 255, 255]', get_radius=15),
-        pdk.Layer('ScatterplotLayer', data=[{"Latitude": df2.iloc[-1]['Lat'], "Longitude": df2.iloc[-1]['Lon']}], get_position='[Longitude, Latitude]', get_color='[255, 255, 0]', get_radius=15)
+        pdk.Layer('LineLayer', data=line_data2, get_source_position='from', get_target_position='to', get_color='color', get_width=4),
+        pdk.Layer('ScatterplotLayer', data=[{"Latitude": df2.iloc[0]['Lat'], "Longitude": df2.iloc[0]['Lon']}], get_position='[Longitude, Latitude]', get_color='[0, 0, 0]', get_radius=3),
+        pdk.Layer('ScatterplotLayer', data=[{"Latitude": df2.iloc[-1]['Lat'], "Longitude": df2.iloc[-1]['Lon']}], get_position='[Longitude, Latitude]', get_color='[255, 100, 0]', get_radius=3)
     ]
 latitudes = []
 longitudes = []
@@ -267,20 +287,22 @@ if not df2.empty:
 lat_mean = np.mean(latitudes) if latitudes else 0
 lon_mean = np.mean(longitudes) if longitudes else 0
 
-st.pydeck_chart(pdk.Deck(
-    #map_style='mapbox://styles/mapbox//dark-v10',
-    map_style="mapbox://styles/mapbox/outdoors-v11",
-    #map_style=None,
-    initial_view_state=pdk.ViewState(
-        latitude= df['Lat'].mean(), #lat_mean,
-        longitude=df['Lon'].mean(), #lon_mean,
-        zoom=14,
-        pitch=0,
-        bearing=twd
-    ),
-    layers=layers
-    #tooltip={"html": "<b>SOG:</b> {SOG} knots<br><b>Hora:</b> {UTC}<br><b>COG:</b> {COG}°"},
-))
+try:
+    st.pydeck_chart(pdk.Deck(
+        map_provider="mapbox",
+        map_style="mapbox://styles/mapbox/outdoors-v11", #mapbox://styles/mapbox/outdoors-v11   map_style='mapbox://styles/mapbox//dark-v10', #map_style=None,
+        initial_view_state=pdk.ViewState(
+            latitude= df['Lat'].mean(), #lat_mean,
+            longitude=df['Lon'].mean(), #lon_mean,
+            zoom=14,
+            pitch=0,
+            bearing=twd
+        ),
+        layers=layers,
+        tooltip={"html": "<b>SOG:</b> {SOG} knots<br><b>Hora:</b> {UTC}<br><b>COG:</b> {COG}°"},
+    ))
+except Exception as e:
+    st.error(f"Error al cargar el mapa: {e}")
 
 # --- Color scale para ambos tracks ---
 color_scale = alt.Scale(
@@ -308,6 +330,50 @@ elif not df2_plot.empty:
     df_plot = df2_plot
 else:
     df_plot = pd.DataFrame()
+
+# --- SEPARACIÓN SOBRE EL PELDAÑO ENTRE TRACKS ---
+if not df1.empty and not df2.empty and twd is not None:
+    lat1_ini, lon1_ini = df1.iloc[0]["Lat"], df1.iloc[0]["Lon"]
+    lat2_ini, lon2_ini = df2.iloc[0]["Lat"], df2.iloc[0]["Lon"]
+    lat1_fin, lon1_fin = df1.iloc[-1]["Lat"], df1.iloc[-1]["Lon"]
+    lat2_fin, lon2_fin = df2.iloc[-1]["Lat"], df2.iloc[-1]["Lon"]
+
+    dist_peld_ini = distance_on_ladder(lat1_ini, lon1_ini, lat2_ini, lon2_ini, twd)
+    dist_peld_fin = distance_on_ladder(lat1_fin, lon1_fin, lat2_fin, lon2_fin, twd)
+
+    st.markdown(
+        f"""**Diferencia sobre el peldaño (inicio, azul → naranja):** {dist_peld_ini:+.1f} m  
+            **Diferencia sobre el peldaño (fin, azul → naranja):** {dist_peld_fin:+.1f} m """
+    )
+
+# Suponiendo que tienes df1, df2, TWD definidos y no vacíos
+if not df1.empty and not df2.empty and twd is not None:
+    # INICIO
+    lat1_ini, lon1_ini = df1.iloc[0]["Lat"], df1.iloc[0]["Lon"]
+    lat2_ini, lon2_ini = df2.iloc[0]["Lat"], df2.iloc[0]["Lon"]
+    # FIN
+    lat1_fin, lon1_fin = df1.iloc[-1]["Lat"], df1.iloc[-1]["Lon"]
+    lat2_fin, lon2_fin = df2.iloc[-1]["Lat"], df2.iloc[-1]["Lon"]
+
+    # Peldaño (perpendicular al viento)
+    dist_peld_ini = distance_on_ladder(lat1_ini, lon1_ini, lat2_ini, lon2_ini, twd)
+    dist_peld_fin = distance_on_ladder(lat1_fin, lon1_fin, lat2_fin, lon2_fin, twd)
+    # Eje del viento (progresión hacia la boya/barlovento/sotavento)
+    dist_eje_ini = distance_on_axis(lat1_ini, lon1_ini, lat2_ini, lon2_ini, twd)
+    dist_eje_fin = distance_on_axis(lat1_fin, lon1_fin, lat2_fin, lon2_fin, twd)
+
+    st.markdown(
+        f"""**Comparativa posiciones inicio/fin:**  
+- Diferencia sobre el **peldaño** (perpendicular a TWD):  
+   inicio: {dist_peld_ini:+.1f} m fin: {dist_peld_fin:+.1f} m  
+   <small>(Signo +: naranja está más a barlovento respecto al azul)</small>  
+- Diferencia sobre el **eje del viento** (TWD):  
+   inicio: {dist_eje_ini:+.1f} m fin: {dist_eje_fin:+.1f} m  
+   <small>(Signo +: naranja va más avanzado hacia barlovento/popas que el azul)</small>
+""",
+        unsafe_allow_html=True
+    )
+
 
 # ----------------------------
 # --- MÉTRICAS PRINCIPALES ---
@@ -368,6 +434,7 @@ for i, dist in enumerate(dist_metros):
 # --- Añade la fila a la tabla ---
 tabla_metricas_df.loc["Diferencia con mínima distancia (m)"] = diferencias
 
+# --- FECHAS DE INICIO Y FIN ---
 min_fechas = []
 max_fechas = []
 for df in track_dfs:
@@ -757,8 +824,12 @@ else:
 
     # velocidad maniobra, recuperación
     st.markdown("#### Tabla: velocidad media antes y después de cada maniobra y tiempo hasta recuperar SOG previa")
+
+    # Convertir a string para evitar error con Arrow
+    tabla_df["Recup. SOG (s)"] = tabla_df["Recup. SOG (s)"].astype(str)
+
     st.dataframe(
-        tabla_df.style.applymap(highlight_recup, subset=["Recup. SOG (s)"]),
+        tabla_df.style.map(highlight_recup, subset=["Recup. SOG (s)"]),
         hide_index=False,
         use_container_width=True
     )

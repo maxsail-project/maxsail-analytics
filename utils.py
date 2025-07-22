@@ -3,6 +3,7 @@ import math
 import pandas as pd
 import gpxpy
 import pyproj
+import numpy as np
 
 wgs84 = pyproj.Geod(ellps="WGS84")
 
@@ -90,3 +91,42 @@ def gpx_file_to_df(gpx_file, file_name):
     if not df.empty and 'UTC' in df.columns:
         df['UTC'] = pd.to_datetime(df['UTC']).dt.tz_localize(None)
     return df
+
+
+def distance_on_ladder(lat1, lon1, lat2, lon2, twd_deg):
+    """
+    Devuelve la distancia (en metros) entre dos puntos, medida sobre el eje perpendicular al TWD.
+    El signo indica qué punto está a barlovento.
+    """
+    # Referencia local para el cálculo: lat1, lon1
+    R = 6371000  # radio Tierra en metros
+    # Convertir a desplazamiento local en metros
+    dlat2 = np.radians(lat2 - lat1)
+    dlon2 = np.radians(lon2 - lon1)
+    xm2 = R * dlon2 * np.cos(np.radians((lat1 + lat2)/2))
+    ym2 = R * dlat2
+
+    # Azimut del peldaño (perpendicular al viento)
+    az_peld = np.radians((twd_deg + 90) % 360)
+    # Vector unitario del peldaño
+    ux, uy = np.cos(az_peld), np.sin(az_peld)
+    # Proyección sobre ese eje (track 2 menos track 1)
+    dist_peld = xm2 * ux + ym2 * uy
+    #return dist_peld  # metros (positivo: track 2 a barlovento de track 1)
+    return distance_on_axis(lat1, lon1, lat2, lon2, (twd_deg + 90) % 360)
+
+def distance_on_axis(lat1, lon1, lat2, lon2, axis_deg):
+    """
+    Distancia entre dos puntos, proyectada sobre el eje con rumbo axis_deg (en grados, desde el norte).
+    Devuelve la diferencia en metros (track2 - track1).
+    """
+    R = 6371000
+    dlat2 = np.radians(lat2 - lat1)
+    dlon2 = np.radians(lon2 - lon1)
+    xm2 = R * dlon2 * np.cos(np.radians((lat1 + lat2)/2))
+    ym2 = R * dlat2
+
+    az_axis = np.radians(axis_deg % 360)
+    ux, uy = np.cos(az_axis), np.sin(az_axis)
+    proj2 = xm2 * ux + ym2 * uy  # punto 2 respecto a punto 1
+    return proj2  # metros (positivo: track2 más adelante sobre el eje)

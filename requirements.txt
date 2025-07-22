@@ -6,3 +6,4 @@ numpy
 altair
 pydeck
 scipy
+requests
