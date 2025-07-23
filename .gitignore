@@ -218,3 +218,8 @@ local_files/
 data/
 poc/
 .streamlit/
+.vscode/
+venv/
+venv311/
+secrets.toml
+setup_venv311.bat
