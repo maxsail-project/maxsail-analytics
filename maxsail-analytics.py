@@ -20,7 +20,6 @@ import pandas as pd
 import numpy as np
 import altair as alt
 import pydeck as pdk
-import requests
 
 from collections import deque
 from scipy.stats import circstd
@@ -41,6 +40,17 @@ from utils import (
 st.set_page_config(page_title="maxSail-analytics: Visor de regata GPX/CSV", layout="wide")
 st.title("🚩 maxSail : Sailing Data, Better Decisions")
 
+# -------- MAPTILER SETUP --------
+MAPTILER_KEY = "1TpHMPPswY7nGJWlOXjY"
+MAPTILER_STYLES = {
+    "Base": f"https://api.maptiler.com/maps/backdrop/style.json?key={MAPTILER_KEY}",
+    "Mapa": f"https://api.maptiler.com/maps/landscape/style.json?key={MAPTILER_KEY}", 
+    "Satélite": f"https://api.maptiler.com/maps/satellite/style.json?key={MAPTILER_KEY}",
+}
+fondo = st.sidebar.selectbox("Fondo de mapa", list(MAPTILER_STYLES.keys()), index=0)
+map_style = MAPTILER_STYLES[fondo]
+
+# --- Sidebar: subir archivo GPX ---
 uploaded_files = st.sidebar.file_uploader(
     "📂 Selecciona uno o más archivos GPX o CSV", 
     type=["gpx", "csv"], 
@@ -201,6 +211,7 @@ st.sidebar.info(
     "Por ejemplo: **2.50** son **2 minutos 30 segundos**."
 )
 
+# --- Filtrar por tiempo ---
 def filtrar_por_tiempo(df, start_min, end_min):
     t0 = df['UTC'].iloc[0]
     df = df.copy()
@@ -226,26 +237,16 @@ if df1.empty and df2.empty:
     st.warning("El tramo seleccionado no contiene datos en uno o ambos tracks. Ajusta el tramo para ver los análisis.")
     st.stop()
 
-# --- MAPA ---
+# --- MAPA: Visualización comparada ---
 
-mapbox_token = st.secrets.get("mapbox", {}).get("token", None)
-if mapbox_token and isinstance(mapbox_token, str) and mapbox_token.strip():
-    pdk.settings.mapbox_api_key = mapbox_token
-    st.text(f"Token activo: {pdk.settings.mapbox_api_key is not None}")
-
-def token_es_valido(token):
-    style_url = f"https://api.mapbox.com/styles/v1/mapbox/streets-v11?access_token={token}"
-    resp = requests.get(style_url)
-    return resp.status_code == 200
-
-mapbox_token = st.secrets.get("mapbox", {}).get("token", "").strip()
-if token_es_valido(mapbox_token):
-    pdk.settings.mapbox_api_key = mapbox_token
-else:
-    st.text("Token mapbox inválido.")
+# Calcula el SOG promedio total de cada track
+sog_avg_azul = round(df1['SOG'].mean(), 2) if not df1.empty else 0
+sog_avg_naranja = round(df2['SOG'].mean(), 2) if not df2.empty else 0
 
 st.subheader("📍 Mapa - visualización de tracks")
 layers = []
+
+# --- Track 1 (azul) ---
 if not df1.empty:
     line_data1 = []
     for i in range(1, len(df1)):
@@ -254,13 +255,44 @@ if not df1.empty:
         line_data1.append({
             "from": [p1['Lon'], p1['Lat']],
             "to": [p2['Lon'], p2['Lat']],
-            "color": [0, 100, 255]
+            "color": [0, 100, 255],
+            "SOG_avg": sog_avg_azul  # <<< Aquí agregas el SOG promedio global
         })
-    layers += [
-        pdk.Layer('LineLayer', data=line_data1, get_source_position='from', get_target_position='to', get_color='color', get_width=4),
-        pdk.Layer('ScatterplotLayer', data=[{"Latitude": df1.iloc[0]['Lat'], "Longitude": df1.iloc[0]['Lon']}], get_position='[Longitude, Latitude]', get_color='[0, 0, 0]', get_radius=3),
-        pdk.Layer('ScatterplotLayer', data=[{"Latitude": df1.iloc[-1]['Lat'], "Longitude": df1.iloc[-1]['Lon']}], get_position='[Longitude, Latitude]', get_color='[0, 100, 255]', get_radius=3)
-    ]
+    layers.append(
+        pdk.Layer(
+            'LineLayer',
+            data=line_data1,
+            get_source_position='from',
+            get_target_position='to',
+            get_color='color',
+            get_width=4,
+            pickable=True,  # Necesario para tooltips
+        )
+    )
+    # Inicio (azul)
+    layers.append(
+        pdk.Layer(
+            'ScatterplotLayer',
+            data=[{"Latitude": df1.iloc[0]['Lat'], "Longitude": df1.iloc[0]['Lon'], "name": "Inicio Track 1"}],
+            get_position='[Longitude, Latitude]',
+            get_color='[0, 100, 255]',
+            get_radius=35,
+            pickable=True,
+        )
+    )
+    # Fin (azul)
+    layers.append(
+        pdk.Layer(
+            'ScatterplotLayer',
+            data=[{"Latitude": df1.iloc[-1]['Lat'], "Longitude": df1.iloc[-1]['Lon'], "name": "Fin Track 1"}],
+            get_position='[Longitude, Latitude]',
+            get_color='[0, 100, 255]',
+            get_radius=35,
+            pickable=True,
+        )
+    )
+
+# --- Track 2 (naranja) ---
 if not df2.empty:
     line_data2 = []
     for i in range(1, len(df2)):
@@ -269,13 +301,44 @@ if not df2.empty:
         line_data2.append({
             "from": [p1['Lon'], p1['Lat']],
             "to": [p2['Lon'], p2['Lat']],
-            "color": [255, 100, 0]
+            "color": [255, 100, 0],
+            "SOG_avg": sog_avg_naranja
         })
-    layers += [
-        pdk.Layer('LineLayer', data=line_data2, get_source_position='from', get_target_position='to', get_color='color', get_width=4),
-        pdk.Layer('ScatterplotLayer', data=[{"Latitude": df2.iloc[0]['Lat'], "Longitude": df2.iloc[0]['Lon']}], get_position='[Longitude, Latitude]', get_color='[0, 0, 0]', get_radius=3),
-        pdk.Layer('ScatterplotLayer', data=[{"Latitude": df2.iloc[-1]['Lat'], "Longitude": df2.iloc[-1]['Lon']}], get_position='[Longitude, Latitude]', get_color='[255, 100, 0]', get_radius=3)
-    ]
+    layers.append(
+        pdk.Layer(
+            'LineLayer',
+            data=line_data2,
+            get_source_position='from',
+            get_target_position='to',
+            get_color='color',
+            get_width=4,
+            pickable=True,
+        )
+    )
+    # Inicio (naranja)
+    layers.append(
+        pdk.Layer(
+            'ScatterplotLayer',
+            data=[{"Latitude": df2.iloc[0]['Lat'], "Longitude": df2.iloc[0]['Lon'], "name": "Inicio Track 2"}],
+            get_position='[Longitude, Latitude]',
+            get_color='[255, 100, 0]',
+            get_radius=35,
+            pickable=True,
+        )
+    )
+    # Fin (naranja)
+    layers.append(
+        pdk.Layer(
+            'ScatterplotLayer',
+            data=[{"Latitude": df2.iloc[-1]['Lat'], "Longitude": df2.iloc[-1]['Lon'], "name": "Fin Track 2"}],
+            get_position='[Longitude, Latitude]',
+            get_color='[255, 100, 0]',
+            get_radius=35,
+            pickable=True,
+        )
+    )
+
+# --- Calcula el centro del mapa ---
 latitudes = []
 longitudes = []
 if not df1.empty:
@@ -289,17 +352,16 @@ lon_mean = np.mean(longitudes) if longitudes else 0
 
 try:
     st.pydeck_chart(pdk.Deck(
-        map_provider="mapbox",
-        map_style="mapbox://styles/mapbox/outdoors-v11", #mapbox://styles/mapbox/outdoors-v11   map_style='mapbox://styles/mapbox//dark-v10', #map_style=None,
+        map_style=map_style,
         initial_view_state=pdk.ViewState(
-            latitude= df['Lat'].mean(), #lat_mean,
-            longitude=df['Lon'].mean(), #lon_mean,
+            latitude=lat_mean,
+            longitude=lon_mean,
             zoom=14,
             pitch=0,
             bearing=twd
         ),
         layers=layers,
-        tooltip={"html": "<b>SOG:</b> {SOG} knots<br><b>Hora:</b> {UTC}<br><b>COG:</b> {COG}°"},
+        tooltip={"html": "<b>SOG promedio:</b> {SOG_avg} kn"},
     ))
 except Exception as e:
     st.error(f"Error al cargar el mapa: {e}")
@@ -1138,6 +1200,6 @@ with st.sidebar:
     st.markdown("""
     **maxsail-analytics**
     - Autor: Maximiliano Mannise
-    - Email: [maxsail.project@gmail.com](mailto:maxsail.project@gmail.com)
+    - [maxsail.project@gmail.com](mailto:maxsail.project@gmail.com)
     - [GitHub](https://github.com/maxsail-project)
     """)
