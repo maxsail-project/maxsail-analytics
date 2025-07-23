@@ -8,6 +8,17 @@ import os
 st.set_page_config(page_title="maxSail GPX Cutter", layout="wide")
 st.title("⛵ maxSail GPX Cutter")
 
+# -------- MAPTILER SETUP --------
+MAPTILER_KEY = "1TpHMPPswY7nGJWlOXjY"
+MAPTILER_STYLES = {
+    "Base": f"https://api.maptiler.com/maps/backdrop/style.json?key={MAPTILER_KEY}",
+    "Mapa": f"https://api.maptiler.com/maps/landscape/style.json?key={MAPTILER_KEY}",
+    "Satélite": f"https://api.maptiler.com/maps/satellite/style.json?key={MAPTILER_KEY}",
+}
+fondo = st.sidebar.selectbox("Fondo de mapa", list(MAPTILER_STYLES.keys()), index=0)
+map_style = MAPTILER_STYLES[fondo]
+# ---------------------------------
+
 # --- Sidebar: subir archivo GPX ---
 uploaded_file = st.sidebar.file_uploader("📂 Selecciona un archivo GPX", type="gpx")
 
@@ -86,7 +97,6 @@ if uploaded_file:
     sec_fin = st.sidebar.number_input("Segundo final", min_value=0, max_value=59, value=0, step=5)
     start_min = min_ini + sec_ini / 60
     end_min = min_fin + sec_fin / 60
-    # Slider de tramo (como analytics)
     start_min, end_min = st.sidebar.slider(
         "Tramo seleccionado (minutos decimales)",
         0.0, float(total_duration),
@@ -159,16 +169,18 @@ if uploaded_file:
         # Puntos de inicio y fin del recorte
         layers += [
             pdk.Layer('ScatterplotLayer',
-                data=[{"lat": df_recorte.iloc[0]['lat'], "lon": df_recorte.iloc[0]['lon']}],
+                data=[{"lat": df_recorte.iloc[0]['lat'], "lon": df_recorte.iloc[0]['lon'], "name": "Inicio recorte"}],
                 get_position='[lon, lat]',
                 get_color='[0, 255, 0]',  # verde: inicio recorte
-                get_radius=30
+                get_radius=30,
+                pickable=True,
             ),
             pdk.Layer('ScatterplotLayer',
-                data=[{"lat": df_recorte.iloc[-1]['lat'], "lon": df_recorte.iloc[-1]['lon']}],
+                data=[{"lat": df_recorte.iloc[-1]['lat'], "lon": df_recorte.iloc[-1]['lon'], "name": "Fin recorte"}],
                 get_position='[lon, lat]',
                 get_color='[255, 0, 0]',  # rojo: fin recorte
-                get_radius=30
+                get_radius=30,
+                pickable=True,
             )
         ]
 
@@ -199,14 +211,16 @@ if uploaded_file:
     """, unsafe_allow_html=True)
 
     st.pydeck_chart(pdk.Deck(
-        map_style="mapbox://styles/mapbox/outdoors-v11",
+        map_style=map_style,
         initial_view_state=pdk.ViewState(
             latitude=lat_center,
             longitude=lon_center,
             zoom=13,
             pitch=0,
+            # bearing=0  # ¿Agregar orientación por futuro TWD?
         ),
-        layers=layers
+        layers=layers,
+        tooltip={"html": "<b>Track</b>"}  # Tooltip simple en los puntos de inicio/fin
     ))
 
     # --- Información básica del recorte ---
