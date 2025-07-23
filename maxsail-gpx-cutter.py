@@ -17,10 +17,13 @@ MAPTILER_STYLES = {
 }
 fondo = st.sidebar.selectbox("Fondo de mapa", list(MAPTILER_STYLES.keys()), index=0)
 map_style = MAPTILER_STYLES[fondo]
-# ---------------------------------
 
 # --- Sidebar: subir archivo GPX ---
-uploaded_file = st.sidebar.file_uploader("📂 Selecciona un archivo GPX", type="gpx")
+uploaded_file = st.sidebar.file_uploader(
+    "📂 Selecciona un archivo GPX", 
+    type="gpx",
+    accept_multiple_files=False
+)
 
 # --- Funciones ---
 def gpx_to_df(gpx):
@@ -90,7 +93,7 @@ if uploaded_file:
 
     # --- Sidebar: filtros de inicio/fin (en minutos y segundos) ---
     st.sidebar.header("🎚️ Selección de tramo")
-    min_duration = int(total_duration)
+    min_duration = round(total_duration, 2) #int(total_duration)
     min_ini = st.sidebar.number_input("Minuto inicial", min_value=0, max_value=min_duration, value=0, step=1)
     sec_ini = st.sidebar.number_input("Segundo inicial", min_value=0, max_value=59, value=0, step=5)
     min_fin = st.sidebar.number_input("Minuto final", min_value=0, max_value=min_duration, value=min_duration, step=1)
@@ -247,3 +250,11 @@ if uploaded_file:
         )
 else:
     st.info("Sube un archivo GPX para comenzar.")
+
+with st.sidebar:
+    st.markdown("""
+    **maxsail-GPX-cutter**
+    - Autor: Maximiliano Mannise
+    - [maxsail.project@gmail.com](mailto:maxsail.project@gmail.com)
+    - [GitHub](https://github.com/maxsail-project)
+    """)
