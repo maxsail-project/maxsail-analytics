@@ -5,6 +5,73 @@ All new features, changes, and fixes for **maxSail-analytics** will be listed he
 
 ---
 
+## [v1.1.0] - 2025-07-24
+
+### Español 🇪🇸
+
+- **Mejora de métricas y visualización comparativa:**
+  - Añadida tabla comparativa clara con indicador de barco delante y distancia (m).
+  - Nueva métrica de “distancia recorrida de más vs otro track” para analizar eficiencia de ruta.
+  - Distancia recorrida mostrada tanto en millas náuticas como en metros.
+  - Leyenda dinámica de colores y nombres GPX sobre el mapa, con escala gráfica.
+  - Textos y nombres de filas simplificados para mayor claridad.
+- **Migración de mapas a MapTiler:**
+  - Reemplazado Mapbox por MapTiler como proveedor de mapas (requiere API Key).
+  - Selector de fondo de mapa en sidebar (Base, Mapa, Satélite).
+  - Visualización más fluida y preparada para futuras capas avanzadas.
+- **maxSail GPX Cutter:**
+  - Visualización comparada del track original (gris) y recorte (rojo) en un solo mapa con leyenda.
+  - Mejor manejo de extensiones GPX y funciones de exportación.
+  - Opción para seleccionar fondo de mapa (Base, Mapa, Satélite).
+  - Ajuste de filtro de tramos por duración, ahora permite decimales para mayor precisión.
+- **Nueva utilidad:**  
+  - `setup_venv.bat` para facilitar la creación rápida del entorno virtual.
+- **Refactor y mejoras técnicas:**
+  - Limpieza de código y comentarios para coherencia entre apps.
+  - Mejoras en el cálculo de distancias entre tracks y visualización de track normalizada.
+  - Optimización y ampliación de funciones náuticas en `utils.py`.
+  - Actualización de dependencias en `requirements.txt`.
+  - Actualización de `.gitignore` para cubrir más entornos.
+- **Documentación:**
+  - README ampliado, badges y estructura mejorada.
+  - Sección wiki y enlaces útiles añadidos.
+- **Corrección de bugs y detalles menores.**
+
+---
+
+### English 🇬🇧
+
+- **Improved metrics and comparative visualization:**
+  - New comparison table indicating leading boat and distance (m).
+  - “Extra distance sailed vs. other track” metric for route efficiency analysis.
+  - Distance now shown in both nautical miles and meters.
+  - Dynamic color and GPX name legend on map, with graphic scale.
+  - Simplified text and row names for clarity.
+- **MapTiler migration:**
+  - Switched from Mapbox to MapTiler for maps (API Key required).
+  - Sidebar map style selector (Base, Map, Satellite).
+  - Smoother map display, ready for future advanced layers.
+- **maxSail GPX Cutter:**
+  - Compared view of original (grey) and cut (red) track on a single map with legend.
+  - Improved handling of GPX extensions and export functions.
+  - Base map style selection option (Base, Map, Satellite).
+  - Segment filtering now allows decimal durations for higher precision.
+- **New utility:**  
+  - `setup_venv.bat` for fast virtual environment setup.
+- **Refactor and technical improvements:**
+  - Code clean-up and comments for consistency across apps.
+  - Improved distance calculation between tracks and normalized track visualization.
+  - Expanded and optimized sailing functions in `utils.py`.
+  - Updated dependencies in `requirements.txt`.
+  - `.gitignore` expanded for more environments.
+- **Documentation:**
+  - Expanded README, badges and improved structure.
+  - Wiki section and helpful links added.
+- **Bug fixes and minor improvements.**
+
+---
+
+
 ## [v1.0.0] - versión incial - PMV / MVP - 2024-07-15
 
 ### Español 🇪🇸
