@@ -275,8 +275,8 @@ if not df1.empty:
             'ScatterplotLayer',
             data=[{"Latitude": df1.iloc[0]['Lat'], "Longitude": df1.iloc[0]['Lon'], "name": "Inicio Track 1"}],
             get_position='[Longitude, Latitude]',
-            get_color='[0, 100, 255]',
-            get_radius=35,
+            get_color='[0, 0, 0]',
+            get_radius=5,
             pickable=True,
         )
     )
@@ -287,7 +287,7 @@ if not df1.empty:
             data=[{"Latitude": df1.iloc[-1]['Lat'], "Longitude": df1.iloc[-1]['Lon'], "name": "Fin Track 1"}],
             get_position='[Longitude, Latitude]',
             get_color='[0, 100, 255]',
-            get_radius=35,
+            get_radius=5,
             pickable=True,
         )
     )
@@ -321,8 +321,8 @@ if not df2.empty:
             'ScatterplotLayer',
             data=[{"Latitude": df2.iloc[0]['Lat'], "Longitude": df2.iloc[0]['Lon'], "name": "Inicio Track 2"}],
             get_position='[Longitude, Latitude]',
-            get_color='[255, 100, 0]',
-            get_radius=35,
+            get_color='[0, 0, 0]',
+            get_radius=5,
             pickable=True,
         )
     )
@@ -333,7 +333,7 @@ if not df2.empty:
             data=[{"Latitude": df2.iloc[-1]['Lat'], "Longitude": df2.iloc[-1]['Lon'], "name": "Fin Track 2"}],
             get_position='[Longitude, Latitude]',
             get_color='[255, 100, 0]',
-            get_radius=35,
+            get_radius=5,
             pickable=True,
         )
     )
@@ -347,10 +347,21 @@ if not df1.empty:
 if not df2.empty:
     latitudes.append(df2['Lat'].mean())
     longitudes.append(df2['Lon'].mean())
+
 lat_mean = np.mean(latitudes) if latitudes else 0
 lon_mean = np.mean(longitudes) if longitudes else 0
 
 try:
+    # --- Muestra el mapa con los tracks ---
+    st.markdown(f"""
+        <div style='display:flex;gap:30px;align-items:center;font-size:16px;'>
+        <span style="display:inline-block;width:30px;height:10px;background:#0064ff;margin-right:8px;margin-bottom:2px;"></span>
+        {track1} 
+        <span style="display:inline-block;width:30px;height:10px;background:#ff6400;;margin-right:8px;margin-bottom:2px;"></span>
+        {track2}
+        </div>
+        """, unsafe_allow_html=True)
+
     st.pydeck_chart(pdk.Deck(
         map_style=map_style,
         initial_view_state=pdk.ViewState(
@@ -400,13 +411,8 @@ if not df1.empty and not df2.empty and twd is not None:
     lat1_fin, lon1_fin = df1.iloc[-1]["Lat"], df1.iloc[-1]["Lon"]
     lat2_fin, lon2_fin = df2.iloc[-1]["Lat"], df2.iloc[-1]["Lon"]
 
-    dist_peld_ini = distance_on_ladder(lat1_ini, lon1_ini, lat2_ini, lon2_ini, twd)
-    dist_peld_fin = distance_on_ladder(lat1_fin, lon1_fin, lat2_fin, lon2_fin, twd)
-
-    st.markdown(
-        f"""**Diferencia sobre el peldaño (inicio, azul → naranja):** {dist_peld_ini:+.1f} m  
-            **Diferencia sobre el peldaño (fin, azul → naranja):** {dist_peld_fin:+.1f} m """
-    )
+    dist_peld_ini = distance_on_ladder(lat1_ini, lon1_ini, lat2_ini, lon2_ini, twd) * -1
+    dist_peld_fin = distance_on_ladder(lat1_fin, lon1_fin, lat2_fin, lon2_fin, twd) * -1
 
 # Suponiendo que tienes df1, df2, TWD definidos y no vacíos
 if not df1.empty and not df2.empty and twd is not None:
@@ -418,23 +424,65 @@ if not df1.empty and not df2.empty and twd is not None:
     lat2_fin, lon2_fin = df2.iloc[-1]["Lat"], df2.iloc[-1]["Lon"]
 
     # Peldaño (perpendicular al viento)
-    dist_peld_ini = distance_on_ladder(lat1_ini, lon1_ini, lat2_ini, lon2_ini, twd)
-    dist_peld_fin = distance_on_ladder(lat1_fin, lon1_fin, lat2_fin, lon2_fin, twd)
+    dist_peld_ini = distance_on_ladder(lat1_ini, lon1_ini, lat2_ini, lon2_ini, twd) * -1
+    dist_peld_fin = distance_on_ladder(lat1_fin, lon1_fin, lat2_fin, lon2_fin, twd) * -1
     # Eje del viento (progresión hacia la boya/barlovento/sotavento)
-    dist_eje_ini = distance_on_axis(lat1_ini, lon1_ini, lat2_ini, lon2_ini, twd)
-    dist_eje_fin = distance_on_axis(lat1_fin, lon1_fin, lat2_fin, lon2_fin, twd)
+    dist_eje_ini = distance_on_axis(lat1_ini, lon1_ini, lat2_ini, lon2_ini, twd) * -1
+    dist_eje_fin = distance_on_axis(lat1_fin, lon1_fin, lat2_fin, lon2_fin, twd) * -1
 
-    st.markdown(
-        f"""**Comparativa posiciones inicio/fin:**  
-- Diferencia sobre el **peldaño** (perpendicular a TWD):  
-   inicio: {dist_peld_ini:+.1f} m fin: {dist_peld_fin:+.1f} m  
-   <small>(Signo +: naranja está más a barlovento respecto al azul)</small>  
-- Diferencia sobre el **eje del viento** (TWD):  
-   inicio: {dist_eje_ini:+.1f} m fin: {dist_eje_fin:+.1f} m  
-   <small>(Signo +: naranja va más avanzado hacia barlovento/popas que el azul)</small>
-""",
-        unsafe_allow_html=True
-    )
+    N = 30  # Número de puntos a promediar para inicio y fin
+    def tramo_tipo_twa(twa_mean):
+        if np.isnan(twa_mean):
+            return "None"
+        abs_twa = abs(twa_mean)
+        if abs_twa < 60:
+            return "ceñida"
+        else:
+            return "popa/través"  # Consideramos popa y través como un solo caso
+
+    # TWA de inicio y fin del tramo (promedio de N puntos, ambos tracks)
+    twa_ini = np.nanmean([
+        df1["TWA"].iloc[:N].mean() if not df1.empty else np.nan,
+        df2["TWA"].iloc[:N].mean() if not df2.empty else np.nan
+    ])
+    twa_fin = np.nanmean([
+        df1["TWA"].iloc[-N:].mean() if not df1.empty else np.nan,
+        df2["TWA"].iloc[-N:].mean() if not df2.empty else np.nan
+    ])
+
+    tipo_tramo_ini = tramo_tipo_twa(twa_ini)
+    tipo_tramo_fin = tramo_tipo_twa(twa_fin)
+
+    #--- TABLA COMPARATIVA DE DISTANCIAS EN PUNTO INICIO y FIN
+    rows = []
+    for pos, tipo, metrica, valor in [
+        ("Inicio", tipo_tramo_ini, 
+        "Dist. lateral (barlovento/sotavento)" if tipo_tramo_ini == "ceñida" else "Avance respecto al eje viento",
+        dist_peld_ini if tipo_tramo_ini == "ceñida" else dist_eje_ini),
+        ("Fin", tipo_tramo_fin,
+        "Dist. lateral (barlovento/sotavento)" if tipo_tramo_fin == "ceñida" else "Avance respecto al eje viento",
+        dist_peld_fin if tipo_tramo_fin == "ceñida" else dist_eje_fin),
+    ]:
+        if tipo in ["ceñida", "popa/través"]:
+            barco = "Naranja" if valor > 0 else "Azul"
+            rows.append({
+                "Punto": pos,
+                "Tipo": tipo.capitalize(),
+                "Barco delante": barco,
+                "Distancia (m)": f"{abs(valor):.1f}",
+                "Métrica": metrica
+            })
+        else:
+            rows.append({
+                "Punto": pos,
+                "Tipo": tipo.capitalize(),
+                "Barco delante": "-",
+                "Distancia (m)": "-",
+                "Métrica": "-"
+            })
+
+    df_comp = pd.DataFrame(rows)
+    st.dataframe(df_comp, use_container_width=True, hide_index=True)
 
 
 # ----------------------------
@@ -448,7 +496,7 @@ metrics = [
     ("SOG máxima (knots)", lambda df: f"{df['SOG'].max():.2f}" if not df.empty else "-"),
     ("TWA* medio (°)", lambda df: f"{df['TWA'].mean():.1f}" if not df.empty else "-"),
     ("VMG* promedio (knots)", lambda df: f"{df['VMG'].mean():.2f}" if not df.empty else "-"),
-    ("Distancia (nm)", lambda df: f"{df['Dist'].sum() / 1852:.2f}" if not df.empty else "-"),
+    ("Distancia (nm) (m)", lambda df: f"{df['Dist'].sum() / 1852:.2f} ({int(df['Dist'].sum()):,} m)" if not df.empty else "-"),
     ("Duración (HH:MM:SS)", lambda df: (
         str(pd.to_timedelta((df['UTC'].iloc[-1] - df['UTC'].iloc[0]).total_seconds(), unit='s')).split('.')[0].replace('0 days ', '')
         if not df.empty and len(df) > 1 else "-"
@@ -477,25 +525,24 @@ for label, df in zip(track_labels, track_dfs):
 
 tabla_metricas_df = pd.DataFrame(tabla_metricas, index=[m[0] for m in metrics])
 
-# --- Calcula distancias absolutas en metros ---
+# Calcula distancias recorridas
 dist_metros = [df['Dist'].sum() if not df.empty else np.nan for df in track_dfs]
 dist_min = np.nanmin(dist_metros)
 
-# --- Calcula diferencia con mínima distancia para cada track ---
+# Calcula diferencia con mínima distancia para cada track
 diferencias = []
 for i, dist in enumerate(dist_metros):
     if np.isnan(dist):
         diferencias.append("-")
     else:
         valor = dist - dist_min
-        if valor == 0:
+        if np.isclose(valor, 0):
             diferencias.append("0 (mínimo)")
         else:
             diferencias.append(f"{valor:,.1f} m")
 
-# --- Añade la fila a la tabla ---
-tabla_metricas_df.loc["Diferencia con mínima distancia (m)"] = diferencias
-
+#  Añade fila de diferencia con minima distancia a la tabla
+tabla_metricas_df.loc["Metros extra recorridos (comparado con el otro) (m)"] = diferencias
 # --- FECHAS DE INICIO Y FIN ---
 min_fechas = []
 max_fechas = []
@@ -516,7 +563,7 @@ for label, color in zip(track_labels, track_colors):
     styled = styled.set_properties(subset=[label], **{'color': color, 'font-weight': 'bold'})
 
 st.markdown("#### Comparativa por Track")
-st.dataframe(styled, use_container_width=False)
+st.dataframe(styled, use_container_width=True)
 
 # Muestra el TWD al principio de la sección de análisis
 if twd is not None:
@@ -1201,5 +1248,5 @@ with st.sidebar:
     **maxsail-analytics**
     - Autor: Maximiliano Mannise
     - [maxsail.project@gmail.com](mailto:maxsail.project@gmail.com)
-    - [GitHub](https://github.com/maxsail-project)
+    - [GitHub: maxsail-project](https://github.com/maxsail-project)
     """)
