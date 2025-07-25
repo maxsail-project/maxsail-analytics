@@ -155,7 +155,11 @@ if df1.empty and df2.empty:
 
 # --- Ingreso manual de TWD ---
 twd = st.sidebar.number_input(
-    "TWD (True Wind Direction, ° estimada)", min_value=0, max_value=360, value=0, step=5
+    "TWD True Wind Direction (º) estimada", min_value=0, max_value=360, value=0, step=5
+)
+
+minuto_salida = st.sidebar.number_input(
+    "Minuto de salida", min_value=0, max_value=10, value=0, step=1,
 )
 
 def minsec(minutes_float):
@@ -351,32 +355,6 @@ if not df2.empty:
 lat_mean = np.mean(latitudes) if latitudes else 0
 lon_mean = np.mean(longitudes) if longitudes else 0
 
-try:
-    # --- Muestra el mapa con los tracks ---
-    st.markdown(f"""
-        <div style='display:flex;gap:30px;align-items:center;font-size:16px;'>
-        <span style="display:inline-block;width:30px;height:10px;background:#0064ff;margin-right:8px;margin-bottom:2px;"></span>
-        {track1} 
-        <span style="display:inline-block;width:30px;height:10px;background:#ff6400;;margin-right:8px;margin-bottom:2px;"></span>
-        {track2}
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.pydeck_chart(pdk.Deck(
-        map_style=map_style,
-        initial_view_state=pdk.ViewState(
-            latitude=lat_mean,
-            longitude=lon_mean,
-            zoom=14,
-            pitch=0,
-            bearing=twd
-        ),
-        layers=layers,
-        tooltip={"html": "<b>SOG promedio:</b> {SOG_avg} kn"},
-    ))
-except Exception as e:
-    st.error(f"Error al cargar el mapa: {e}")
-
 # --- Color scale para ambos tracks ---
 color_scale = alt.Scale(
     domain=[f'{track1} (azul)', f'{track2} (naranja)'],
@@ -404,6 +382,34 @@ elif not df2_plot.empty:
 else:
     df_plot = pd.DataFrame()
 
+# --- Mostrar tracks en el mapa ---
+try:
+    # --- Muestra el mapa con los tracks ---
+    st.markdown(f"""
+        <div style='display:flex;gap:30px;align-items:center;font-size:16px;'>
+        <span style="display:inline-block;width:30px;height:10px;background:#0064ff;margin-right:8px;margin-bottom:2px;"></span>
+        {track1} 
+        <span style="display:inline-block;width:30px;height:10px;background:#ff6400;;margin-right:8px;margin-bottom:2px;"></span>
+        {track2}
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.pydeck_chart(pdk.Deck(
+        map_style=map_style,
+        initial_view_state=pdk.ViewState(
+            latitude=lat_mean,
+            longitude=lon_mean,
+            zoom=14,
+            pitch=0,
+            bearing=twd
+        ),
+        layers=layers,
+        tooltip={"html": "<b>SOG promedio:</b> {SOG_avg} kn"},
+    ))
+except Exception as e:
+    st.error(f"Error al cargar el mapa: {e}")
+
+# --- BLOQUE PARA CALCULAR Y COMPARAR DISTANCIAS RECORRIDAS ---
 # --- SEPARACIÓN SOBRE EL PELDAÑO ENTRE TRACKS ---
 if not df1.empty and not df2.empty and twd is not None:
     lat1_ini, lon1_ini = df1.iloc[0]["Lat"], df1.iloc[0]["Lon"]
@@ -483,6 +489,7 @@ if not df1.empty and not df2.empty and twd is not None:
 
     df_comp = pd.DataFrame(rows)
     st.dataframe(df_comp, use_container_width=True, hide_index=True)
+# :::FIN: BLOQUE PARA CALCULAR Y COMPARAR DISTANCIAS RECORRIDAS ---
 
 
 # ----------------------------
@@ -580,7 +587,7 @@ if not df_plot.empty:
     chart_sog = alt.Chart(df_plot).mark_line().encode(
         x=alt.X('UTC:T', title='Tiempo'),
         y=alt.Y('SOG:Q', title='SOG (knots)'),
-        color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track"))
+        color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top'))
     ).properties(width=900, height=250)
     st.altair_chart(chart_sog, use_container_width=True)
 
@@ -607,6 +614,53 @@ tabla_sog = pd.DataFrame(
 
 st.dataframe(tabla_sog, use_container_width=True)
 
+# --- EVOLUCIÓN DE SOG y COG ---
+st.subheader("📈 Evolución de SOG y COG (superpuesto)")
+def plot_sog_cog_superpuesto(df, track_color, track_label):
+    if df.empty:
+        return None
+
+    base = alt.Chart(df).encode(x=alt.X('UTC:T', title='Tiempo'))
+
+    sog_line = base.mark_line(
+        color=track_color,
+        strokeWidth=2,
+        opacity=1.0
+    ).encode(
+        y=alt.Y('SOG:Q', title='SOG (knots)')
+    )
+
+    cog_line = base.mark_line(
+        color='#333333',
+        strokeWidth=1.2,
+        opacity=1.0
+    ).encode(
+        y=alt.Y('COG:Q', title='COG (°)')
+    )
+
+    chart = alt.layer(
+        sog_line,
+        cog_line
+    ).resolve_scale(
+        y='independent'
+    ).properties(
+        width=900, height=250,
+        title=f"SOG (color) y COG (gris) - {track_label}"
+    )
+
+    return chart
+
+# Para el track azul
+if not df1_plot.empty:
+    chart_azul = plot_sog_cog_superpuesto(df1_plot, '#0064FF', f"{track1} (azul)")
+    st.altair_chart(chart_azul, use_container_width=True)
+
+# Para el track naranja
+if not df2_plot.empty:
+    chart_naranja = plot_sog_cog_superpuesto(df2_plot, '#FF6400', f"{track2} (naranja)")
+    st.altair_chart(chart_naranja, use_container_width=True)
+
+
 # --- EVOLUCIÓN DE COG ---
 st.subheader("📈 Evolución de COG (°)")
 if not df_plot.empty:
@@ -614,7 +668,7 @@ if not df_plot.empty:
         x=alt.X('UTC:T', title='Tiempo'),
         y=alt.Y('COG:Q', title='COG (°)'),
         #y=alt.Y('COG:Q', title='COG (°)', scale=alt.Scale(domain=[0, 360])),
-        color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track"))
+        color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top'))
     ).properties(width=900, height=250)
     st.altair_chart(chart_cog, use_container_width=True)
 
@@ -646,7 +700,7 @@ if not df_plot.empty and 'VMG' in df_plot.columns:
     chart_vmg = alt.Chart(df_plot).mark_line().encode(
         x=alt.X('UTC:T', title='Tiempo'),
         y=alt.Y('VMG:Q', title='VMG (knots)'),
-        color=alt.Color('Track:N', scale=color_scale)
+        color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top'))
     ).properties(width=900, height=250)
     st.altair_chart(chart_vmg, use_container_width=True)
 
@@ -689,7 +743,7 @@ if not df_plot.empty and 'TWA' in df_plot.columns:
     chart_twa = alt.Chart(df_plot).mark_line().encode(
         x=alt.X('UTC:T', title='Tiempo'),
         y=alt.Y('TWA:Q', title='TWA (°)'),
-        color=alt.Color('Track:N', scale=color_scale)
+        color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top'))
     ).properties(width=900, height=250)
     st.altair_chart(chart_twa, use_container_width=True)
 
@@ -700,7 +754,7 @@ if not df_plot.empty:
         hist_sog = alt.Chart(df_plot).mark_bar(size=30, opacity=0.7).encode(
             x=alt.X('SOG:Q', bin=alt.Bin(maxbins=25), title='SOG (knots)'),
             y=alt.Y('count()', stack=None, title='Frecuencia'),
-            color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track")),
+            color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top')),
             xOffset='Track:N',
             tooltip=['count()', 'Track:N']
         ).properties(width=900, height=250)
@@ -719,7 +773,7 @@ if not df_plot.empty and 'TWA' in df_plot.columns:
     scatter_sog_twa = alt.Chart(df_plot).mark_circle(size=45, opacity=0.6).encode(
         x=alt.X('TWA:Q', title='TWA (°)'),
         y=alt.Y('SOG:Q', title='SOG (knots)'),
-        color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track")),
+        color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track",orient='top')),
         tooltip=['UTC:T', 'SOG:Q', 'TWA:Q', 'Track:N']
     ).properties(width=900, height=300)
     st.altair_chart(scatter_sog_twa, use_container_width=True)
@@ -739,7 +793,7 @@ if not df_plot.empty and 'VMG' in df_plot.columns and 'TWA' in df_plot.columns:
     scatter_vmg_twa = alt.Chart(df_plot).mark_circle(size=45, opacity=0.6).encode(
         x=alt.X('TWA:Q', title='TWA (°)'),
         y=alt.Y('VMG:Q', title='VMG (knots)'),
-        color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track")),
+        color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top')),
         tooltip=['UTC:T', 'VMG:Q', 'TWA:Q', 'Track:N']
     ).properties(width=900, height=300)
     st.altair_chart(scatter_vmg_twa, use_container_width=True)
@@ -809,7 +863,7 @@ chart_cog = alt.Chart(df_plot).mark_line().encode(
     x=alt.X('UTC:T', title='Tiempo'),
     #y=alt.Y('COG:Q', title='COG (°)', scale=alt.Scale(domain=[0, 360])), 
     y=alt.Y('COG:Q', title='COG (°)'),
-    color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track"))
+    color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top'))
 )
 if not maniobra_df.empty:
     points = alt.Chart(maniobra_df).mark_point(
@@ -1245,8 +1299,12 @@ El código es de uso libre y puede ser compartido, modificado y distribuido bajo
 
 with st.sidebar:
     st.markdown("""
-    **maxsail-analytics**
+    **maxSail-analytics**
     - Autor: Maximiliano Mannise
     - [maxsail.project@gmail.com](mailto:maxsail.project@gmail.com)
     - [GitHub: maxsail-project](https://github.com/maxsail-project)
     """)
+
+with st.sidebar:
+    st.markdown("---")
+    st.markdown("**Versión:** v1.1.0  \n[Changelog](https://github.com/maxsail-project/maxsail-analytics/blob/main/CHANGELOG.md)")
