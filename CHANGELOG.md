@@ -4,6 +4,19 @@ Todas las novedades, cambios y fixes de **maxSail-analytics** aparecerán aquí.
 All new features, changes, and fixes for **maxSail-analytics** will be listed here.
 
 ---
+## [1.2.0-beta]
+
+**Versión de trabajo / beta (no estable)**  
+Esta versión incorpora funcionalidades en desarrollo que pueden cambiar o mejorarse antes del próximo release estable.
+
+### Agregado
+- Gráfico superpuesto de SOG y COG para cada track, permitiendo análisis visual combinado de velocidad y rumbo.
+- Detección y visualización avanzada de balizas de recorrido y de salida.
+- Mejoras varias en visualización, leyendas y métricas.
+
+### Nota
+> Esta versión es de trabajo y puede tener cambios frecuentes. No recomendada para uso en producción o análisis definitivos.
+---
 
 ## [v1.1.0] - 2025-07-24
 
