@@ -195,11 +195,11 @@ if uploaded_file:
     st.markdown("""
     <div style='display:flex;gap:30px;align-items:center;font-size:16px;'>
       <span style='display:inline-flex;align-items:center;'>
-        <span style='display:inline-block;width:30px;height:6px;background:#a0a0a0;margin-right:8px;'></span>
+        <span style='display:inline-block;width:30px;height:10px;background:#a0a0a0;margin-right:8px;'></span>
         Track original
       </span>
       <span style='display:inline-flex;align-items:center;'>
-        <span style='display:inline-block;width:30px;height:6px;background:#dc143c;margin-right:8px;'></span>
+        <span style='display:inline-block;width:30px;height:10px;background:#dc143c;margin-right:8px;'></span>
         Track recortado
       </span>
       <span style='display:inline-flex;align-items:center;'>
@@ -251,10 +251,33 @@ if uploaded_file:
 else:
     st.info("Sube un archivo GPX para comenzar.")
 
+# --- DATOS DE CONTACTO Y DISCLAIMER ---
+st.markdown("""
+---
+#### 📢 Proyecto abierto y descargo de responsabilidad
+
+Este visor de regatas es un proyecto abierto y experimental, creado con el objetivo de compartir, comparar y analizar tracks GPS de forma colaborativa en la flota.
+
+**Creador / Author:**  
+- Maximiliano Mannise  
+- [maxsail.project@gmail.com](mailto:maxsail.project@gmail.com)  
+- [GitHub: maxsail-project](https://github.com/maxsail-project)  
+
+**Aviso legal / Disclaimer:**  
+La información visualizada y los análisis generados por esta herramienta son orientativos y no deben ser considerados como asesoramiento profesional ni como datos oficiales de regatas. El creador no asume ninguna responsabilidad por el uso, interpretación o decisiones tomadas a partir de la información mostrada.
+
+El código es de uso libre y puede ser compartido, modificado y distribuido bajo los términos de la licencia MIT.  
+¡Cualquier mejora, comentario o contribución es bienvenida!
+""")
+
 with st.sidebar:
     st.markdown("""
-    **maxsail-GPX-cutter**
+    **maxSail-analytics**
     - Autor: Maximiliano Mannise
     - [maxsail.project@gmail.com](mailto:maxsail.project@gmail.com)
-    - [GitHub](https://github.com/maxsail-project)
+    - [GitHub: maxsail-project](https://github.com/maxsail-project)
     """)
+
+with st.sidebar:
+    st.markdown("---")
+    st.markdown("**Versión:** v1.1.0  \n[Changelog](https://github.com/maxsail-project/maxsail-analytics/blob/main/CHANGELOG.md)")
