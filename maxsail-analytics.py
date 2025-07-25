@@ -1307,4 +1307,4 @@ with st.sidebar:
 
 with st.sidebar:
     st.markdown("---")
-    st.markdown("**Versión:** v1.1.0  \n[Changelog](https://github.com/maxsail-project/maxsail-analytics/blob/main/CHANGELOG.md)")
+    st.markdown("**Versión:** v1.2.0-beta  \n[Changelog](https://github.com/maxsail-project/maxsail-analytics/blob/main/CHANGELOG.md)")
