@@ -5,6 +5,13 @@ All new features, changes, and fixes for **maxSail-analytics** will be listed he
 
 ---
 
+## [v1.2.1] - 2025-12-05
+
+### Español 🇪🇸
+
+- Actualización de sentencias de instalación y requirements.txt. Modificaciones menores
+---
+
 ## [v1.2.0] - 2025-12-04
 
 ### Español 🇪🇸
