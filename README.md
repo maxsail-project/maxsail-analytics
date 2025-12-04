@@ -119,7 +119,7 @@ If you want to use the app locally, follow these steps:
 1. Instala las dependencias / Install dependencies:
 
 ```sh
-   pip install streamlit gpxpy pyproj pandas numpy altair pydeck scipy requests haversine
+   pip install streamlit gpxpy pyproj pandas numpy altair pydeck scipy requests haversine matplotlib
 ```
 
 1. Ejecuta la aplicación / Run the app:
