@@ -20,6 +20,7 @@ You can download the GPX files from this repo for testing, or even better: use y
   - [maxSail-analytics](#maxsail-analytics)
     - [Características principales / Main features](#características-principales--main-features)
   - [maxSail GPX Cutter](#maxsail-gpx-cutter)
+  - [maxSail Meta Data](#maxsail-meta-data)
   - [Instalación / Installation](#instalación--installation)
   - [Uso básico / Basic usage](#uso-básico--basic-usage)
   - [Formato esperado del archivo CSV / Expected CSV format](#formato-esperado-del-archivo-csv--expected-csv-format)
@@ -31,22 +32,32 @@ You can download the GPX files from this repo for testing, or even better: use y
   - [Contribuciones / Contributions](#contribuciones--contributions)
 
 ---
-
 ## Descripción general / Overview
 
-**maxSail-analytics** y **maxSail GPX Cutter** son herramientas open source para visualizar, analizar, comparar y limpiar tracks GPS de regatas y entrenamientos de vela ligera y crucero.
+**maxSail-analytics** y **maxSail GPX Cutter** son herramientas open source para visualizar, analizar, comparar y limpiar tracks GPS de regatas y entrenamientos de vela ligera y crucero.  
+**maxSail-analytics** and **maxSail GPX Cutter** are open-source tools to visualize, analyze, compare, and clean GPS tracks from dinghy and keelboat racing or training sessions.
 
-- **maxSail-analytics:** Análisis, visualización y comparación avanzada de tracks GPX/CSV.
-- **maxSail GPX Cutter:** Recorta tramos de tus tracks GPX de forma visual y sencilla, para limpiar y exportar solo lo que te interesa.
+- **maxSail-analytics:** Análisis, visualización y comparación avanzada de tracks GPX/CSV.  
+  **maxSail-analytics:** Advanced analysis, visualization, and comparison of GPX/CSV tracks.
+
+- **maxSail GPX Cutter:** Recorta tramos de tus tracks GPX de forma visual y sencilla, para limpiar y exportar solo lo que te interesa.  
+  **maxSail GPX Cutter:** Visually trim segments of your GPX tracks to clean and export only what you need.
+
+- **maxSail Meta Data:** Gestiona fácilmente metadatos de tus tracks (dirección y fuerza del viento, minuto de salida, notas, balizas) mediante archivos `-meta-data.json` asociados a cada GPX. Reproduce, comparte y analiza sesiones con máxima fidelidad.  
+  **maxSail Meta Data:** Easily manage track metadata (wind direction and strength, start minute, notes, marks) using `-meta-data.json` files linked to each GPX. Replay, share, and analyze sessions with maximum fidelity.
 
 ---
 
 ## maxSail-analytics
 
-[maxSail-analytics en Streamlit](https://maxsail-analytics.streamlit.app/)
+[maxSail-analytics en Streamlit](https://maxsail-analytics.streamlit.app/)  
+[maxSail-analytics on Streamlit](https://maxsail-analytics.streamlit.app/)
 
 **maxSail-analytics** es una herramienta open source para visualizar, analizar y comparar tracks GPS de regatas y entrenamientos de vela.  
-Permite cargar archivos GPX o CSV, mostrar recorridos en un mapa interactivo, comparar dos tracks, analizar métricas clave (velocidad, distancia, rumbo, tiempo) y detectar maniobras de forma sencilla, visual y colaborativa.
+**maxSail-analytics** is an open-source tool for visualizing, analyzing, and comparing GPS tracks from sailing races and training sessions.
+
+Permite cargar archivos GPX o CSV, mostrar recorridos en un mapa interactivo, comparar dos tracks, analizar métricas clave (velocidad, distancia, rumbo, tiempo) y detectar maniobras de forma sencilla, visual y colaborativa.  
+It allows you to load GPX or CSV files, display tracks on an interactive map, compare two tracks, analyze key metrics (speed, distance, heading, time), and detect maneuvers in a simple, visual, and collaborative way.
 
 ### Características principales / Main features
 
@@ -76,6 +87,16 @@ Permite cargar archivos GPX o CSV, mostrar recorridos en un mapa interactivo, co
 **maxSail GPX Cutter** es un utilitario open source que te permite recortar tramos de tus archivos GPX de forma visual e interactiva, pensado para regatistas y navegantes que quieren analizar sólo los tramos relevantes de su track (por ejemplo, eliminando la ida o el regreso a puerto).
 
 > [¡Probar ahora en Streamlit!](https://maxsail-gpx-cutter.streamlit.app/)
+
+---
+
+## maxSail Meta Data
+
+[![Abrir en Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://maxsail-meta-data.streamlit.app/)
+
+**maxSail Meta Data** es un utilitario open source para gestionar y editar los metadatos de tus tracks de navegación (por ejemplo, viento, salida, notas, balizas) mediante archivos `-meta-data.json` vinculados a cada GPX. Pensado para regatistas que buscan reproducibilidad, organización avanzada y análisis colaborativo.
+
+> [¡Probar ahora en Streamlit!](https://maxsail-meta-data.streamlit.app/)
 
 ---
 
