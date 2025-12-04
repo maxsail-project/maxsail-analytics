@@ -20,19 +20,26 @@ import pandas as pd
 import numpy as np
 import altair as alt
 import pydeck as pdk
+import json
 
-from collections import deque
-from scipy.stats import circstd
+from scipy.stats import circstd, circmean
+
 from utils import (
-    calculate_distance_bearing,
-    calculate_velocity,
-    estimate_twa,
-    calculate_vmg,
-    estimate_wind_direction,
-    distance_on_ladder,
     distance_on_axis, 
-    gpx_file_to_df
+    gpx_file_to_df,
+    linea_perpendicular_pyproj,
+    puntos_perpendiculares_pyproj,
+    calcular_twa_vmg,
+    ladder_distance_rung,
+    circular_min_max_deg
 )
+
+def mean_circ_signed_deg(series):
+    s = pd.to_numeric(series, errors='coerce').dropna()
+    if s.empty:
+        return np.nan
+    return float(circmean(s, high=180, low=-180))
+
 
 # -----------------------------
 # INICIO APP STREAMLIT
@@ -56,6 +63,18 @@ uploaded_files = st.sidebar.file_uploader(
     type=["gpx", "csv"], 
     accept_multiple_files=True
 )
+
+meta_file = st.sidebar.file_uploader(
+    "📄 (Opcional) Meta-data JSON",
+    type=["json"],
+    accept_multiple_files=False
+)
+meta_data = {}
+if meta_file is not None:
+    try:
+        meta_data = json.load(meta_file)
+    except Exception as e:
+        st.sidebar.error(f"Error leyendo meta-data JSON: {e}")
 
 if not uploaded_files:
     st.info("Sube al menos un archivo GPX o CSV para comenzar.")
@@ -135,6 +154,19 @@ if not dfs:
 
 df = pd.concat(dfs, ignore_index=True)
 
+# --- Comprobación de coincidencia con ARCHIVO_TRACK (si existe) ---
+if meta_data.get("ARCHIVO_TRACK"):
+    esperado = str(meta_data["ARCHIVO_TRACK"]).strip()
+    try:
+        archivos_subidos = [f.name for f in uploaded_files]
+        if esperado and archivos_subidos and all(esperado != n for n in archivos_subidos):
+            st.sidebar.warning(
+                f"El meta-data sugiere '{esperado}', pero los archivos cargados son: {', '.join(archivos_subidos)}"
+            )
+    except Exception:
+        pass
+
+
 # --- Selección de tracks ---
 if "SourceFile" in df.columns:
     track_files = sorted(df['SourceFile'].dropna().unique().tolist(), reverse=True)
@@ -148,6 +180,8 @@ else:
 
 df1 = df[df['SourceFile'] == track1].copy() if track1 != "(Ninguno)" else pd.DataFrame()
 df2 = df[df['SourceFile'] == track2].copy() if track2 != "(Ninguno)" else pd.DataFrame()
+df1_original = df[df['SourceFile'] == track1].copy() if track1 != "(Ninguno)" else pd.DataFrame()
+df2_original = df[df['SourceFile'] == track2].copy() if track2 != "(Ninguno)" else pd.DataFrame()
 
 if df1.empty and df2.empty:
     st.info("Selecciona al menos un track para comenzar.")
@@ -155,21 +189,26 @@ if df1.empty and df2.empty:
 
 # --- Ingreso manual de TWD ---
 twd = st.sidebar.number_input(
-    "TWD True Wind Direction (º) estimada", min_value=0, max_value=360, value=0, step=5
+    "TWD True Wind Direction (º) estimada", min_value=0, max_value=360, value=int(meta_data.get("TWD", 0)), step=5
 )
 
 minuto_salida = st.sidebar.number_input(
-    "Minuto de salida", min_value=0, max_value=10, value=0, step=1,
+    "Minuto de salida", min_value=0, max_value=10, value=int(meta_data.get("MINUTO_SALIDA", 0)), step=1,
 )
 
-def minsec(minutes_float):
-    mins = int(minutes_float)
-    secs = int(round((minutes_float - mins)*60))
-    return f"{mins}:{secs:02d}"
+# --- Meta-data (si disponible) ---
+if meta_data:
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**Meta-data del día**")
+    if "TWS" in meta_data: st.sidebar.write(f"TWS: {meta_data['TWS']} kn")
+    if "TWSG" in meta_data: st.sidebar.write(f"TWSG: {meta_data['TWSG']} kn")
+#    if "ARCHIVO_TRACK" in meta_data: st.sidebar.write(f"Archivo esperado: {meta_data['ARCHIVO_TRACK']}")
+#    if "NOTAS" in meta_data:
+#        st.sidebar.markdown("**Notas:**")
+#        st.sidebar.code(str(meta_data["NOTAS"]))
 
-def to_minutes(mins, secs):
-    return mins + secs/60
 
+# --- Calcular duración mínima ---
 if not df1.empty and not df2.empty:
     dur1 = (df1['UTC'].iloc[-1] - df1['UTC'].iloc[0]).total_seconds() / 60
     dur2 = (df2['UTC'].iloc[-1] - df2['UTC'].iloc[0]).total_seconds() / 60
@@ -199,6 +238,9 @@ min_fin = st.sidebar.number_input("Minuto final", min_value=0, max_value=int(min
 sec_ini = st.sidebar.number_input("Segundo inicial", min_value=0, max_value=59, value=sec_ini, step=5)
 sec_fin = st.sidebar.number_input("Segundo final", min_value=0, max_value=59, value=sec_fin, step=5)
 
+def to_minutes(mins, secs):
+    return mins + secs/60
+
 start_min = to_minutes(min_ini, sec_ini)
 end_min = to_minutes(min_fin, sec_fin)
 if start_min >= end_min:
@@ -222,14 +264,17 @@ def filtrar_por_tiempo(df, start_min, end_min):
     df['minutes'] = (df['UTC'] - t0).dt.total_seconds() / 60
     return df[(df['minutes'] >= start_min) & (df['minutes'] <= end_min)].copy()
 
-def calcular_twa_vmg(df, twd):
-    if df.empty:
-        return df
-    df['TWA'] = np.abs(df['COG'] - twd)
-    df['TWA'] = df['TWA'].apply(lambda x: 360-x if x > 180 else x)
-    df['VMG'] = df['SOG'] * np.cos(np.radians(df['TWA']))
-    return df
+# --- Calcular frecuencia promedio ---
+def calcular_frecuencia(df):
+    if df.empty or len(df) < 2:
+        return "-"
+    dur_sec = (df['UTC'].iloc[-1] - df['UTC'].iloc[0]).total_seconds()
+    if dur_sec <= 0:
+        return "-"
+    return f"{len(df) / dur_sec:.2f}"
 
+
+# --- Calcular TWA y VMG ---
 if not df1.empty:
     df1 = filtrar_por_tiempo(df1, start_min, end_min)
     df1 = calcular_twa_vmg(df1, twd)
@@ -342,6 +387,39 @@ if not df2.empty:
         )
     )
 
+# --- Balizas desde meta-data (rojas) ---
+if meta_data.get("BALIZAS"):
+    try:
+        bal_meta = pd.DataFrame(meta_data["BALIZAS"])
+        # Normalizar nombres de columnas
+        if "lat" in bal_meta.columns: bal_meta.rename(columns={"lat": "Lat"}, inplace=True)
+        if "lon" in bal_meta.columns: bal_meta.rename(columns={"lon": "Lon"}, inplace=True)
+        if "nombre" not in bal_meta.columns: bal_meta["nombre"] = ""
+        bal_meta["color"] = [[220, 20, 60] for _ in range(len(bal_meta))]  # rojo
+
+        layer_balizas_meta = pdk.Layer(
+            'ScatterplotLayer',
+            data=bal_meta,
+            get_position='[Lon, Lat]',
+            get_color='color',
+            get_radius=7,
+            pickable=True
+        )
+        layer_text_balizas = pdk.Layer(
+            'TextLayer',
+            data=bal_meta,
+            get_position='[Lon, Lat]',
+            get_text='nombre',
+            get_size=16,
+            get_color='[255,255,255]',
+            get_text_anchor='"middle"',
+            get_alignment_baseline='"top"'
+        )
+        layers.append(layer_balizas_meta)
+        layers.append(layer_text_balizas)
+    except Exception as e:
+        st.warning(f"No se pudieron cargar balizas desde meta-data: {e}")
+
 # --- Calcula el centro del mapa ---
 latitudes = []
 longitudes = []
@@ -382,6 +460,82 @@ elif not df2_plot.empty:
 else:
     df_plot = pd.DataFrame()
 
+# --- Cálculo punto central en el minuto_salida ---
+punto_salida = None
+if not df1_original.empty:
+    df1_temp = df1_original.copy()
+    df1_temp['minutes'] = (df1_temp['UTC'] - df1_temp['UTC'].iloc[0]).dt.total_seconds() / 60
+    df_salida = df1_temp[np.abs(df1_temp['minutes'] - minuto_salida) < 0.10]  # tolerancia en minutos
+    if not df_salida.empty:
+        punto_salida = df_salida.iloc[0]
+
+# --- Calcular puntos perpendiculares si hay punto válido ---
+if punto_salida is not None and twd is not None:
+    lat0 = punto_salida['Lat']
+    lon0 = punto_salida['Lon']
+    pt1, pt2 = puntos_perpendiculares_pyproj(lat0, lon0, twd, distancia_m=100)
+
+    # Crear DataFrame con la línea blanca
+    linea_blanca = pd.DataFrame([{
+        "from": [pt1[1], pt1[0]],  # lon, lat
+        "to":   [pt2[1], pt2[0]],  # lon, lat
+    }])
+
+    capa_linea_blanca = pdk.Layer(
+        'LineLayer',
+        data=linea_blanca,
+        get_source_position='from',
+        get_target_position='to',
+        get_color='[255, 255, 255]',
+        get_width=4,
+        pickable=False
+    )
+
+    # --- Añadir puntos blancos al mapa ---
+    layers.append(capa_linea_blanca)
+
+# --- Añadir linea en barco azul
+if not df1.empty:
+    lat_ini1 = df1.iloc[-1]['Lat']
+    lon_ini1 = df1.iloc[-1]['Lon']
+    pt1a, pt1b = linea_perpendicular_pyproj(lat_ini1, lon_ini1, twd, distancia_m=20)
+
+    data_linea_azul = pd.DataFrame([{
+        "from": [pt1a[1], pt1a[0]],
+        "to":   [pt1b[1], pt1b[0]],
+    }])
+
+    capa_linea_azul = pdk.Layer(
+        'LineLayer',
+        data=data_linea_azul,
+        get_source_position='from',
+        get_target_position='to',
+        get_color='[0, 100, 255, 128]',  # Azul, 50% transparencia
+        get_width=3,
+        pickable=False
+    )
+    layers.append(capa_linea_azul)
+
+# --- Añadir linea en barco naranja ---
+if not df2.empty:
+    lat_fin2 = df2.iloc[-1]['Lat']
+    lon_fin2 = df2.iloc[-1]['Lon']
+    pt2a, pt2b = linea_perpendicular_pyproj(lat_fin2, lon_fin2, twd, distancia_m=20)
+    data_linea_naranja = pd.DataFrame([{
+        "from": [pt2a[1], pt2a[0]],
+        "to":   [pt2b[1], pt2b[0]],
+    }])
+    capa_linea_naranja = pdk.Layer(
+        'LineLayer',
+        data=data_linea_naranja,
+        get_source_position='from',
+        get_target_position='to',
+        get_color='[255, 100, 0, 128]',
+        get_width=3,
+        pickable=False
+    )
+    layers.append(capa_linea_naranja)
+
 # --- Mostrar tracks en el mapa ---
 try:
     # --- Muestra el mapa con los tracks ---
@@ -410,17 +564,6 @@ except Exception as e:
     st.error(f"Error al cargar el mapa: {e}")
 
 # --- BLOQUE PARA CALCULAR Y COMPARAR DISTANCIAS RECORRIDAS ---
-# --- SEPARACIÓN SOBRE EL PELDAÑO ENTRE TRACKS ---
-if not df1.empty and not df2.empty and twd is not None:
-    lat1_ini, lon1_ini = df1.iloc[0]["Lat"], df1.iloc[0]["Lon"]
-    lat2_ini, lon2_ini = df2.iloc[0]["Lat"], df2.iloc[0]["Lon"]
-    lat1_fin, lon1_fin = df1.iloc[-1]["Lat"], df1.iloc[-1]["Lon"]
-    lat2_fin, lon2_fin = df2.iloc[-1]["Lat"], df2.iloc[-1]["Lon"]
-
-    dist_peld_ini = distance_on_ladder(lat1_ini, lon1_ini, lat2_ini, lon2_ini, twd) * -1
-    dist_peld_fin = distance_on_ladder(lat1_fin, lon1_fin, lat2_fin, lon2_fin, twd) * -1
-
-# Suponiendo que tienes df1, df2, TWD definidos y no vacíos
 if not df1.empty and not df2.empty and twd is not None:
     # INICIO
     lat1_ini, lon1_ini = df1.iloc[0]["Lat"], df1.iloc[0]["Lon"]
@@ -429,12 +572,14 @@ if not df1.empty and not df2.empty and twd is not None:
     lat1_fin, lon1_fin = df1.iloc[-1]["Lat"], df1.iloc[-1]["Lon"]
     lat2_fin, lon2_fin = df2.iloc[-1]["Lat"], df2.iloc[-1]["Lon"]
 
-    # Peldaño (perpendicular al viento)
-    dist_peld_ini = distance_on_ladder(lat1_ini, lon1_ini, lat2_ini, lon2_ini, twd) * -1
-    dist_peld_fin = distance_on_ladder(lat1_fin, lon1_fin, lat2_fin, lon2_fin, twd) * -1
-    # Eje del viento (progresión hacia la boya/barlovento/sotavento)
-    dist_eje_ini = distance_on_axis(lat1_ini, lon1_ini, lat2_ini, lon2_ini, twd) * -1
-    dist_eje_fin = distance_on_axis(lat1_fin, lon1_fin, lat2_fin, lon2_fin, twd) * -1
+    # --- NUEVO: Distancia entre peldaños a la misma altura sobre el viento (realmente lo que ves como líneas punteadas)
+    # Usamos el barco azul como referencia (puedes cambiarlo)
+    dist_peldaños_ini = distance_on_axis(lat1_ini, lon1_ini, lat2_ini, lon2_ini, twd)
+    dist_peldaños_fin = distance_on_axis(lat1_fin, lon1_fin, lat2_fin, lon2_fin, twd)
+
+    # Opcional: también puedes calcular la separación sobre el eje del viento (avance hacia boya/barlovento/sotavento)
+    dist_eje_ini = ladder_distance_rung(lat1_ini, lon1_ini, lat2_ini, lon2_ini, twd)
+    dist_eje_fin = ladder_distance_rung(lat1_fin, lon1_fin, lat2_fin, lon2_fin, twd)
 
     N = 30  # Número de puntos a promediar para inicio y fin
     def tramo_tipo_twa(twa_mean):
@@ -444,17 +589,17 @@ if not df1.empty and not df2.empty and twd is not None:
         if abs_twa < 60:
             return "ceñida"
         else:
-            return "popa/través"  # Consideramos popa y través como un solo caso
+            return "popa/través"
 
-    # TWA de inicio y fin del tramo (promedio de N puntos, ambos tracks)
-    twa_ini = np.nanmean([
-        df1["TWA"].iloc[:N].mean() if not df1.empty else np.nan,
-        df2["TWA"].iloc[:N].mean() if not df2.empty else np.nan
-    ])
-    twa_fin = np.nanmean([
-        df1["TWA"].iloc[-N:].mean() if not df1.empty else np.nan,
-        df2["TWA"].iloc[-N:].mean() if not df2.empty else np.nan
-    ])
+    vals_ini = []
+    if not df1.empty: vals_ini.append(mean_circ_signed_deg(df1["TWA_abs"].iloc[:N]))
+    if not df2.empty: vals_ini.append(mean_circ_signed_deg(df2["TWA_abs"].iloc[:N]))
+    twa_ini = np.nanmean(vals_ini) if vals_ini else np.nan
+
+    vals_fin = []
+    if not df1.empty: vals_fin.append(mean_circ_signed_deg(df1["TWA_abs"].iloc[-N:]))
+    if not df2.empty: vals_fin.append(mean_circ_signed_deg(df2["TWA_abs"].iloc[-N:]))
+    twa_fin = np.nanmean(vals_fin) if vals_fin else np.nan
 
     tipo_tramo_ini = tramo_tipo_twa(twa_ini)
     tipo_tramo_fin = tramo_tipo_twa(twa_fin)
@@ -462,12 +607,12 @@ if not df1.empty and not df2.empty and twd is not None:
     #--- TABLA COMPARATIVA DE DISTANCIAS EN PUNTO INICIO y FIN
     rows = []
     for pos, tipo, metrica, valor in [
-        ("Inicio", tipo_tramo_ini, 
-        "Dist. lateral (barlovento/sotavento)" if tipo_tramo_ini == "ceñida" else "Avance respecto al eje viento",
-        dist_peld_ini if tipo_tramo_ini == "ceñida" else dist_eje_ini),
+        ("Inicio", tipo_tramo_ini,
+         "Dif. de peldaños (barlovento/sotavento)" if tipo_tramo_ini == "ceñida" else "Avance respecto al eje viento",
+         dist_peldaños_ini if tipo_tramo_ini == "ceñida" else dist_eje_ini),
         ("Fin", tipo_tramo_fin,
-        "Dist. lateral (barlovento/sotavento)" if tipo_tramo_fin == "ceñida" else "Avance respecto al eje viento",
-        dist_peld_fin if tipo_tramo_fin == "ceñida" else dist_eje_fin),
+         "Dif. de peldaños (barlovento/sotavento)" if tipo_tramo_fin == "ceñida" else "Avance respecto al eje viento",
+         dist_peldaños_fin if tipo_tramo_fin == "ceñida" else dist_eje_fin),
     ]:
         if tipo in ["ceñida", "popa/través"]:
             barco = "Naranja" if valor > 0 else "Azul"
@@ -489,8 +634,6 @@ if not df1.empty and not df2.empty and twd is not None:
 
     df_comp = pd.DataFrame(rows)
     st.dataframe(df_comp, use_container_width=True, hide_index=True)
-# :::FIN: BLOQUE PARA CALCULAR Y COMPARAR DISTANCIAS RECORRIDAS ---
-
 
 # ----------------------------
 # --- MÉTRICAS PRINCIPALES ---
@@ -500,15 +643,18 @@ st.subheader("📊 Métricas principales del tramo")
 metrics = [
     ("TWD* (°)", lambda df: f"{twd:.0f}" if twd is not None else "-"),
     ("SOG promedio (knots)", lambda df: f"{df['SOG'].mean():.2f}" if not df.empty else "-"),
+    ("SOG mediana (knots)", lambda df: f"{df['SOG'].median():.2f}" if not df.empty else "-"),  # <-- Nueva línea
     ("SOG máxima (knots)", lambda df: f"{df['SOG'].max():.2f}" if not df.empty else "-"),
-    ("TWA* medio (°)", lambda df: f"{df['TWA'].mean():.1f}" if not df.empty else "-"),
+    ("TWA* medio (°)", lambda df: f"{mean_circ_signed_deg(df['TWA']):.1f}" if (not df.empty and 'TWA' in df.columns and not df['TWA'].isnull().all()) else "-"),
     ("VMG* promedio (knots)", lambda df: f"{df['VMG'].mean():.2f}" if not df.empty else "-"),
     ("Distancia (nm) (m)", lambda df: f"{df['Dist'].sum() / 1852:.2f} ({int(df['Dist'].sum()):,} m)" if not df.empty else "-"),
     ("Duración (HH:MM:SS)", lambda df: (
         str(pd.to_timedelta((df['UTC'].iloc[-1] - df['UTC'].iloc[0]).total_seconds(), unit='s')).split('.')[0].replace('0 days ', '')
         if not df.empty and len(df) > 1 else "-"
     )),
+    ("Frecuencia promedio (Hz)", lambda df: calcular_frecuencia(df)),
 ]
+
 
 track_dfs = []
 track_labels = []
@@ -523,6 +669,58 @@ if not df2_plot.empty:
     track_labels.append(f"{track2} (naranja)")
     track_colors.append("#FF6400")
 # más tracks en el futuro, agrégarlos aquí.
+
+##### BLOQUE PARA ESCALA DE TIEMPO
+# --- Tiempo sincronizado para gráficos (solo tracks seleccionados/visibles) ---
+if not df_plot.empty:
+    # inicio por track
+    starts = []
+    for trk in df_plot['Track'].unique():
+        t0 = pd.to_datetime(df_plot.loc[df_plot['Track'] == trk, 'UTC']).min()
+        if pd.notnull(t0):
+            starts.append(t0)
+    # t=0 es el inicio común (el más tardío de los inicios visibles)
+    if starts:
+        sync_start = max(starts)
+        df_plot['Elapsed_min'] = (
+            pd.to_datetime(df_plot['UTC']) - sync_start
+        ).dt.total_seconds() / 60.0
+
+##### LO DE ARRIBA IGUAL SOBRA
+
+# --- Tiempo relativo (t=0 en salida del track azul) ---
+if not df_plot.empty:
+    # Intentar encontrar el label del track azul
+    # 1) Si tus labels incluyen "(azul)" úsalo; si no, toma el primer seleccionado
+    try:
+        track_azul_label = next(
+            (t for t in df_plot['Track'].unique() if "(azul)" in str(t).lower()),
+            track_labels[0]
+        )
+    except Exception:
+        track_azul_label = track_labels[0]
+
+    df_azul_plot = df_plot[df_plot['Track'] == track_azul_label]
+
+    if not df_azul_plot.empty:
+        # Referencia temporal: minuto de salida del azul si está disponible; si no, primer UTC del azul
+        if 'punto_salida' in locals() and punto_salida is not None and 'UTC' in punto_salida:
+            salida_azul_utc = pd.to_datetime(punto_salida['UTC'])
+        else:
+            salida_azul_utc = pd.to_datetime(df_azul_plot['UTC']).min()
+
+        # Columnas de tiempo relativo (pueden ser negativas antes de la salida)
+        df_plot['Tiempo_relativo_sec'] = (
+            pd.to_datetime(df_plot['UTC']) - salida_azul_utc
+        ).dt.total_seconds()
+
+        df_plot['Tiempo_relativo_min'] = df_plot['Tiempo_relativo_sec'] / 60.0
+
+
+
+##### FIN BLOQUE PARA ESCALA DE TIEMPO
+
+
 
 # --- Construye la tabla base ---
 tabla_metricas = {}
@@ -584,11 +782,26 @@ st.divider()
 # --- EVOLUCIÓN DE SOG ---
 st.subheader("📈 Evolución de SOG (knots)")
 if not df_plot.empty:
-    chart_sog = alt.Chart(df_plot).mark_line().encode(
-        x=alt.X('UTC:T', title='Tiempo'),
+    # --- Línea vertical en minuto de salida ---
+    linea_salida = alt.Chart(pd.DataFrame({'Tiempo_relativo_min': [0]})).mark_rule(
+        color='black',
+        strokeDash=[4, 4],
+        size=2
+    ).encode(
+        x='Tiempo_relativo_min:Q'
+    )
+
+    # --- Gráfico de SOG ---
+    chart_sog = alt.Chart(df_plot).mark_line(opacity=0.9).encode(
+        x=alt.X('UTC:T', title='Hora GPS'),
+        #x=alt.X('Tiempo_relativo_min:Q', title='Tiempo relativo a salida (min)'),
         y=alt.Y('SOG:Q', title='SOG (knots)'),
         color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top'))
     ).properties(width=900, height=250)
+
+    # --- Combinar ---
+    #chart_sog_con_salida = chart_sog + linea_salida
+    #st.altair_chart(chart_sog_con_salida, use_container_width=True)
     st.altair_chart(chart_sog, use_container_width=True)
 
 # Arma los datos para la tabla resumen
@@ -602,7 +815,7 @@ for track_label, track_df in zip(track_labels, track_dfs):
         idx_min_sog = track_df['SOG'].idxmin()
         sog_max = f"{track_df['SOG'].max():.2f} ({track_df.loc[idx_max_sog, 'TWA']:.1f}°)"
         sog_min = f"{track_df['SOG'].min():.2f} ({track_df.loc[idx_min_sog, 'TWA']:.1f}°)"
-        sog_avg = f"{track_df['SOG'].mean():.2f} ({track_df['TWA'].mean():.1f}°)"
+        sog_avg = f"{track_df['SOG'].mean():.2f} ({mean_circ_signed_deg(track_df['TWA']):.1f}°)"
     else:
         sog_max = sog_min = sog_avg = "-"
     sog_data[track_label] = [sog_max, sog_min, sog_avg]
@@ -620,14 +833,20 @@ def plot_sog_cog_superpuesto(df, track_color, track_label):
     if df.empty:
         return None
 
-    base = alt.Chart(df).encode(x=alt.X('UTC:T', title='Tiempo'))
-
+    base = alt.Chart(df).encode(
+        x=alt.X('UTC:T', title='Hora GPS'),
+        #x=alt.X('Tiempo_relativo_min:Q', title='Tiempo relativo a salida (min)'),
+    )
     sog_line = base.mark_line(
         color=track_color,
         strokeWidth=2,
         opacity=1.0
     ).encode(
-        y=alt.Y('SOG:Q', title='SOG (knots)')
+        y=alt.Y(
+            'SOG:Q',
+            title='SOG (knots)'
+            # Opcional: axis=alt.Axis(values=[...]) si quieres ticks específicos
+        )
     )
 
     cog_line = base.mark_line(
@@ -635,20 +854,29 @@ def plot_sog_cog_superpuesto(df, track_color, track_label):
         strokeWidth=1.2,
         opacity=1.0
     ).encode(
-        y=alt.Y('COG:Q', title='COG (°)')
+        y=alt.Y(
+            'COG:Q',
+            title='COG (°)',
+            scale=alt.Scale(domain=[0, 360]),
+            axis=alt.Axis(
+                values=list(range(0, 361, 30)),  # 0,30,60,...,360
+                tickCount=13
+            )
+        )
     )
 
     chart = alt.layer(
         sog_line,
         cog_line
     ).resolve_scale(
-        y='independent'
+        y='independent'   # mantiene escalas independientes para SOG y COG
     ).properties(
-        width=900, height=250,
+        width=900, height=250,  
         title=f"SOG (color) y COG (gris) - {track_label}"
     )
 
     return chart
+
 
 # Para el track azul
 if not df1_plot.empty:
@@ -664,41 +892,155 @@ if not df2_plot.empty:
 # --- EVOLUCIÓN DE COG ---
 st.subheader("📈 Evolución de COG (°)")
 if not df_plot.empty:
-    chart_cog = alt.Chart(df_plot).mark_line().encode(
-        x=alt.X('UTC:T', title='Tiempo'),
-        y=alt.Y('COG:Q', title='COG (°)'),
-        #y=alt.Y('COG:Q', title='COG (°)', scale=alt.Scale(domain=[0, 360])),
+    chart_cog = alt.Chart(df_plot).mark_line(opacity=0.9).encode(
+        x=alt.X('UTC:T', title='Hora GPS'),
+        #x=alt.X('Tiempo_relativo_min:Q', title='Tiempo relativo a salida (min)'),
+        y=alt.Y(
+            'COG:Q',
+            title='COG (°)',
+            scale=alt.Scale(domain=[0, 360]),
+            axis=alt.Axis(
+                values=list(range(0, 361, 30)),
+                tickCount=13
+            )
+        ),
         color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top'))
-    ).properties(width=900, height=250)
+    ).properties(width=900, height=300)
+
+        # --- Línea vertical en minuto de salida ---
+    linea_salida = alt.Chart(pd.DataFrame({'Tiempo_relativo_min': [0]})).mark_rule(
+        color='black',
+        strokeDash=[4, 4],
+        size=2
+    ).encode(
+        x='Tiempo_relativo_min:Q'
+    )
+    # Combina el gráfico de COG con la línea de salida
+    #chart_cog = chart_cog + linea_salida
     st.altair_chart(chart_cog, use_container_width=True)
 
+
+# Arma los datos para la tabla resumen de COG
 cog_data = {}
 for track_label, track_df in zip(track_labels, track_dfs):
     if not track_df.empty and not track_df['COG'].isnull().all():
-        cog_min = f"{track_df['COG'].min():.1f}"
-        cog_max = f"{track_df['COG'].max():.1f}"
-        cog_avg = f"{track_df['COG'].mean():.1f}"
+        # min/máx circulares
+        mn, mx, span = circular_min_max_deg(track_df['COG'])
+        cog_min = f"{mn:.1f}"
+        cog_max = f"{mx:.1f}"
+        # promedio y std circulares
+        cog_avg = f"{circmean(track_df['COG'].dropna(), high=360, low=0):.1f}"
         cog_std = f"{circstd(track_df['COG'].dropna(), high=360, low=0):.1f}"
     else:
         cog_min = cog_max = cog_avg = cog_std = "-"
+
     cog_data[track_label] = [cog_min, cog_max, cog_avg, cog_std]
 
-tabla_cog = pd.DataFrame(
-    cog_data,
-    index=["Mínimo", "Máximo", "Promedio", "Dispersión (std)"]
-)
+tabla_cog = pd.DataFrame(cog_data,index=["Mínimo", "Máximo", "Promedio", "Dispersión (std)*"])
 
+# añade el rango circular (span) a la tabla
+cog_span_data = {}
+for track_label, track_df in zip(track_labels, track_dfs):
+    if not track_df.empty and not track_df['COG'].isnull().all():
+        _, _, span = circular_min_max_deg(track_df['COG'])
+        cog_span_data[track_label] = f"{span:.1f}"
+    else:
+        cog_span_data[track_label] = "-"
+tabla_cog.loc["Rango circular (°)"] = cog_span_data
 st.dataframe(tabla_cog, use_container_width=True)
-
 st.caption(
-        "Si es baja → el barco mantuvo rumbo muy estable. Si es alta → hubo cambios de rumbo (maniobras, zigzags, etc)"
+        "*Si es baja → el barco mantuvo rumbo muy estable. Si es alta → hubo cambios de rumbo (maniobras, zigzags, etc)"
     )
+
+# === Rosa de COG (frecuencia) – 10° por sector, colores de tracks ===
+import matplotlib.pyplot as plt
+
+st.subheader("🌬️ Rosa de COG – Frecuencia (10°)")
+
+# Bins: 36 sectores de 10°
+edges_deg = np.arange(0, 361, 10)            # [0, 10, 20, ..., 360]
+sector_labels = [f"{int(x)}" for x in edges_deg[:-1]]
+width = np.deg2rad(10)                       # ancho de cada barra
+
+def _rose_freq(df_src, titulo="Rosa COG", facecolor="#999999", edgecolor="black", alpha=0.85):
+    fig = plt.figure(figsize=(3, 3))
+    ax = plt.subplot(111, polar=True)
+
+    if df_src is None or df_src.empty or "COG" not in df_src.columns:
+        ax.set_axis_off()
+        ax.set_title(f"{titulo}\n(sin datos)")
+        return fig
+
+    # Normaliza a [0, 360) y discretiza en sectores de 10°
+    cog_norm = (pd.to_numeric(df_src["COG"], errors="coerce") % 360).dropna().astype(float)
+    sectors = pd.cut(cog_norm, bins=edges_deg, right=False, labels=sector_labels, include_lowest=True)
+
+    # Conteo y frecuencia
+    counts = sectors.value_counts().sort_index()
+    freq = counts / counts.sum() if counts.sum() > 0 else counts
+
+    # Ángulo de inicio de cada sector (0°, 10°, 20°...). Si prefieres centrar, suma 5° antes de pasar a radianes.
+    angles = np.deg2rad(freq.index.astype(float).values) if len(freq) else np.array([])
+
+    # Dibujo
+    if len(freq):
+        ax.bar(
+            angles,
+            freq.values,
+            width=width,
+            edgecolor=edgecolor,
+            color=facecolor,
+            alpha=alpha,
+        )
+
+    # Convención náutica: norte arriba, sentido horario
+    ax.set_theta_zero_location('N')
+    ax.set_theta_direction(-1)
+
+    # Etiquetas radiales y título
+    ax.set_rlabel_position(225)
+    ax.set_title(titulo)
+
+    ax.set_yticks([0.05, 0.10, 0.15, 0.20])
+    ax.set_yticklabels(['5%', '10%', '15%', '20%'])
+
+
+    return fig
+
+col1, col2 = st.columns(2)
+
+# Track 1 (azul)
+with col1:
+    if 'df1_plot' in locals() and df1_plot is not None and not df1_plot.empty:
+        fig1 = _rose_freq(
+            df1_plot,
+            titulo=f"Rosa COG – {track1} (azul)",
+            facecolor="#0064FF",   # color de relleno track 1
+            edgecolor="#0064FF"    # borde a juego
+        )
+        st.pyplot(fig1, use_container_width=False)
+    else:
+        st.info("Selecciona un Track 1 para ver su rosa de COG.")
+
+# Track 2 (naranja)
+with col2:
+    if 'df2_plot' in locals() and df2_plot is not None and not df2_plot.empty:
+        fig2 = _rose_freq(
+            df2_plot,
+            titulo=f"Rosa COG – {track2} (naranja)",
+            facecolor="#FF6400",   # color de relleno track 2
+            edgecolor="#FF6400"    # borde a juego
+        )
+        st.pyplot(fig2, use_container_width=False)
+    else:
+        st.info("Selecciona un Track 2 para ver su rosa de COG.")
 
 # --- EVOLUCIÓN DE VMG ---
 st.subheader("📈 Evolución de VMG (knots)")
 if not df_plot.empty and 'VMG' in df_plot.columns:
-    chart_vmg = alt.Chart(df_plot).mark_line().encode(
-        x=alt.X('UTC:T', title='Tiempo'),
+    chart_vmg = alt.Chart(df_plot).mark_line(opacity=0.9).encode(
+        x=alt.X('UTC:T', title='Hora GPS'),
+        #x=alt.X('Tiempo_relativo_min:Q', title='Tiempo relativo a salida (min)'),
         y=alt.Y('VMG:Q', title='VMG (knots)'),
         color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top'))
     ).properties(width=900, height=250)
@@ -725,7 +1067,7 @@ for track_label, track_df in zip(track_labels, track_dfs):
         idx_min_vmg = track_df['VMG'].idxmin()
         vmg_max = f"{track_df['VMG'].max():.2f} ({track_df.loc[idx_max_vmg, 'TWA']:.1f}°)"
         vmg_min = f"{track_df['VMG'].min():.2f} ({track_df.loc[idx_min_vmg, 'TWA']:.1f}°)"
-        vmg_avg = f"{track_df['VMG'].mean():.2f} ({track_df['TWA'].mean():.1f}°)"
+        vmg_avg = f"{track_df['VMG'].mean():.2f} ({mean_circ_signed_deg(track_df['TWA']):.1f}°)"
     else:
         vmg_max = vmg_min = vmg_avg = "-"
     vmg_data[track_label] = [vmg_max, vmg_min, vmg_avg]
@@ -737,15 +1079,23 @@ tabla_vmg = pd.DataFrame(
 )
 st.dataframe(tabla_vmg, use_container_width=True)
 
-# --- EVOLUCIÓN DE TWA ---
-st.subheader("📈 Evolución de TWA (°)")
+# --- EVOLUCIÓN DE TWA ----
+st.subheader("📈 Evolución de TWA_abs (°)")
 if not df_plot.empty and 'TWA' in df_plot.columns:
-    chart_twa = alt.Chart(df_plot).mark_line().encode(
-        x=alt.X('UTC:T', title='Tiempo'),
-        y=alt.Y('TWA:Q', title='TWA (°)'),
+    chart_twa = alt.Chart(df_plot).mark_line(opacity=0.9).encode(
+        x=alt.X('UTC:T', title='Hora GPS'),
+        #x=alt.X('Tiempo_relativo_min:Q', title='Tiempo relativo a salida (min)'),
+        y=alt.Y(
+            'TWA_abs:Q',
+            title='TWA_abs (°)',
+            scale=alt.Scale(domain=[0, 180]),
+            axis=alt.Axis(values=list(range(0, 181, 30)))
+        ),
         color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top'))
-    ).properties(width=900, height=250)
+    ).properties(width=900, height=300)
     st.altair_chart(chart_twa, use_container_width=True)
+    st.caption("negativo amurado a estribor y positivo amurado a babor")
+
 
 # --- HISTOGRAMA DE SOG (agrupado si hay dos tracks) ---
 st.subheader("📊 Histograma de SOG (knots)")
@@ -769,14 +1119,22 @@ if not df_plot.empty:
 
 # --- DISPERSIÓN SOG vs TWA ---
 st.subheader("📊 SOG vs. TWA (dispersión)")
-if not df_plot.empty and 'TWA' in df_plot.columns:
+if not df_plot.empty:
     scatter_sog_twa = alt.Chart(df_plot).mark_circle(size=45, opacity=0.6).encode(
-        x=alt.X('TWA:Q', title='TWA (°)'),
+        x=alt.X(
+            'TWA:Q',
+            title='TWA (°)',
+            scale=alt.Scale(domain=[-180, 180]),
+            axis=alt.Axis(values=list(range(-180, 181, 10)))
+        ),
         y=alt.Y('SOG:Q', title='SOG (knots)'),
-        color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track",orient='top')),
+        color=alt.Color('Track:N', scale=color_scale,
+                        legend=alt.Legend(title="Track", orient='top')),
         tooltip=['UTC:T', 'SOG:Q', 'TWA:Q', 'Track:N']
     ).properties(width=900, height=300)
+
     st.altair_chart(scatter_sog_twa, use_container_width=True)
+
 
 # --- DISPERSIÓN VMG vs TWA ---
 st.subheader("📊 VMG vs. TWA (dispersión)")
@@ -788,16 +1146,22 @@ st.markdown("""
 - **En popa** (TWA alto, cerca de 150°-180°): el mejor VMG es el valor más negativo.
 - La nube de puntos ayuda a identificar las “zonas óptimas” para navegar según las condiciones del tramo.
 """)
-
 if not df_plot.empty and 'VMG' in df_plot.columns and 'TWA' in df_plot.columns:
     scatter_vmg_twa = alt.Chart(df_plot).mark_circle(size=45, opacity=0.6).encode(
-        x=alt.X('TWA:Q', title='TWA (°)'),
+        x=alt.X(
+            'TWA:Q',
+            title='TWA (°)',
+            scale=alt.Scale(domain=[-180, 180]),
+            axis=alt.Axis(values=list(range(-180, 181, 10)))
+        ),
         y=alt.Y('VMG:Q', title='VMG (knots)'),
-        color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top')),
+        color=alt.Color('Track:N', scale=color_scale,
+                        legend=alt.Legend(title="Track", orient='top')),
         tooltip=['UTC:T', 'VMG:Q', 'TWA:Q', 'Track:N']
     ).properties(width=900, height=300)
-    st.altair_chart(scatter_vmg_twa, use_container_width=True)
 
+    st.altair_chart(scatter_vmg_twa, use_container_width=True)
+   
 # --- ANÁLISIS DE MANIOBRAS Y BASADA EN COG ---
 st.subheader("🔄 Análisis de maniobras basado en COG")
 
@@ -814,25 +1178,43 @@ window = st.number_input(
 )
 tiempo_minimo = st.number_input(
     "Tiempo mínimo entre maniobras detectadas (segundos)",
-    min_value=5, max_value=60, value=15, step=1,
+    min_value=5, max_value=60, value=18, step=1,
     help="Descarta maniobras consecutivas muy cercanas en el tiempo"
 )
 
+def circ_diff_deg(a, b):
+    """Diferencia angular mínima en grados (resultado en [-180, +180])."""
+    return (a - b + 180) % 360 - 180
+
+# --- Detección de maniobras (con COG circular) ---
 maniobra_points = []
 if not df_plot.empty:
     for track in df_plot['Track'].unique():
-        track_df = df_plot[df_plot['Track'] == track].sort_values('UTC').reset_index(drop=True)
-        cogs = track_df['COG'].values
+        track_df = (
+            df_plot[df_plot['Track'] == track]
+            .sort_values('UTC')
+            .reset_index(drop=True)
+        )
+
+        # Asegura dominio [0,360) para cálculos circulares
+        cogs = np.mod(track_df['COG'].values, 360.0)
         times = track_df['UTC'].values
-        for i in range(window, len(cogs) - window):  # ¡IMPORTANTE! evita error en ventana post
-            ventana_prev = cogs[i-window:i]
-            ventana_post = cogs[i+1:i+1+window]
-            media_prev = np.mean(ventana_prev)
-            media_post = np.mean(ventana_post)
-            mediana_prev = np.median(ventana_prev)
-            diff = abs(cogs[i] - mediana_prev)
-            if diff > 180:
-                diff = 360 - diff
+
+        for i in range(window, len(cogs) - window):
+            ventana_prev = cogs[i - window : i]
+            ventana_post = cogs[i + 1 : i + 1 + window]
+
+            # Medias CIRCULARES de ventanas
+            media_prev = float(circmean(ventana_prev, high=360, low=0))
+            media_post = float(circmean(ventana_post, high=360, low=0))
+
+            # Diferencias CIRCULARES con el punto actual
+            diff_prev = abs(circ_diff_deg(cogs[i], media_prev))
+            diff_post = abs(circ_diff_deg(cogs[i], media_post))
+
+            # Usa la mayor (o podrías usar el promedio) como “intensidad” de maniobra
+            diff = max(diff_prev, diff_post)
+
             if diff > umbral_maniobra:
                 maniobra_points.append({
                     "UTC": times[i],
@@ -844,7 +1226,15 @@ if not df_plot.empty:
                 })
 maniobra_df = pd.DataFrame(maniobra_points)
 
-# Eliminar maniobras cercanas en el tiempo
+# --- Sincronizar maniobra_df con tiempo relativo ---
+if not maniobra_df.empty:
+    maniobra_df = maniobra_df.merge(
+        df_plot[['UTC', 'Track', 'Tiempo_relativo_min']],
+        on=['UTC', 'Track'],
+        how='left'
+    )
+
+# --- Filtro: eliminar maniobras muy cercanas en el tiempo ---
 if not maniobra_df.empty:
     maniobra_df = maniobra_df.sort_values(['Track', 'UTC']).reset_index(drop=True)
     maniobra_df["keep"] = True
@@ -859,22 +1249,36 @@ if not maniobra_df.empty:
     maniobra_df = maniobra_df[maniobra_df["keep"]].reset_index(drop=True)
 
 # --- VISUALIZACIÓN DEL GRÁFICO ---
-chart_cog = alt.Chart(df_plot).mark_line().encode(
-    x=alt.X('UTC:T', title='Tiempo'),
-    #y=alt.Y('COG:Q', title='COG (°)', scale=alt.Scale(domain=[0, 360])), 
-    y=alt.Y('COG:Q', title='COG (°)'),
+chart_cog = alt.Chart(df_plot).mark_line(opacity=1).encode(
+    x=alt.X('UTC:T', title='Hora GPS'),
+    #x=alt.X('Tiempo_relativo_min:Q', title='Tiempo relativo a salida (min)'),
+    y=alt.Y(
+        'COG:Q',
+        title='COG (°)',
+        scale=alt.Scale(domain=[0, 360]),
+        axis=alt.Axis(
+            values=list(range(0, 361, 30)),
+            tickCount=13
+        )
+    ),
     color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top'))
 )
 if not maniobra_df.empty:
     points = alt.Chart(maniobra_df).mark_point(
-        shape='triangle-up', color='red', size=120
+        shape='diamond',
+        size=150,
+        filled=True,
+        stroke='black',
+        strokeWidth=3
+    ).encode(
+        color=alt.Color('Track:N', scale=color_scale, legend=None)
     ).encode(
         x='UTC:T',
         y='COG:Q',
         tooltip=['UTC:T', 'COG:Q', 'Track:N']
     )
     chart_final = chart_cog + points
-    st.altair_chart(chart_final.properties(width=900, height=250), use_container_width=True)
+    st.altair_chart(chart_final.properties(width=900, height=300), use_container_width=True)
     # Resumen de maniobras por track
     conteo_tracks = maniobra_df.groupby("Track").size().to_dict()
     resumen_txt = ", ".join([f"{track}: {count}" for track, count in conteo_tracks.items()])
@@ -1029,8 +1433,9 @@ if not maniobra_df.empty:
                 continue
             sog_mean = tramo["SOG"].mean()
             cog_mean = tramo["COG"].mean()
+            cog_mean = circmean(tramo["COG"].dropna(), high=360, low=0)
             cog_std = circstd(tramo["COG"].dropna(), high=360, low=0)
-            twa_mean = tramo["TWA"].mean() if "TWA" in tramo else np.nan
+            twa_mean = mean_circ_signed_deg(tramo["TWA_abs"]) if "TWA_abs" in tramo else np.nan
             tramo_tipo = tramo_tipo_twa(twa_mean)
             utc_ini = tramo["UTC"].iloc[0]
             utc_fin = tramo["UTC"].iloc[-1]
@@ -1068,7 +1473,6 @@ if not maniobra_df.empty:
 st.subheader("🏅 Ranking por tramo: VMG en ceñida y popa")
 
 ranking_vmg = []
-
 for i, df in enumerate(track_dfs):
     if df.empty:
         ranking_vmg.append({

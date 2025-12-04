@@ -4,18 +4,41 @@ Todas las novedades, cambios y fixes de **maxSail-analytics** aparecerán aquí.
 All new features, changes, and fixes for **maxSail-analytics** will be listed here.
 
 ---
-## [1.2.0-beta]
 
-**Versión de trabajo / beta (no estable)**  
-Esta versión incorpora funcionalidades en desarrollo que pueden cambiar o mejorarse antes del próximo release estable.
+## [v1.2.0] - 2025-04-12
 
-### Agregado
-- Gráfico superpuesto de SOG y COG para cada track, permitiendo análisis visual combinado de velocidad y rumbo.
-- Detección y visualización avanzada de balizas de recorrido y de salida.
-- Mejoras varias en visualización, leyendas y métricas.
+### Español 🇪🇸
 
-### Nota
-> Esta versión es de trabajo y puede tener cambios frecuentes. No recomendada para uso en producción o análisis definitivos.
+- **Nuevo:** Análisis de separación entre tracks tanto sobre el peldaño (perpendicular al viento) como sobre el eje del viento (progresión hacia boya/barlovento/sotavento) al inicio y al final del tramo seleccionado.
+- **Nuevo:** Tabla comparativa de distancia, tipo de tramo (ceñida, popa/través), barco delante y métrica (lateral o longitudinal).
+- **Nuevo:** Permite importar y cargar automáticamente ficheros de metadatos (`-meta-data.json`) junto con el archivo GPX. Los metadatos incluyen TWD, TWS, minuto de salida, notas y balizas personalizadas.
+- **Nuevo:** Soporte completo para edición y exportación de metadatos en formato JSON reutilizable entre sesiones.
+- Mejora de la sección comparativa por track: incluye fechas/hora de inicio y fin.
+- Mejora de visualización en mapa: reducción de tamaño de marcadores de inicio/fin y líneas perpendiculares (mayor claridad al hacer zoom).
+- Optimización en cálculo de métricas (COG, TWA, dispersión circular, etc.).
+- Mejoras en leyendas, explicaciones y captions bilingües.
+- Actualización de dependencias y refactorización de funciones en `utils.py`.
+- Se mantiene compatibilidad total con GPX, CSV y tracks de frecuencia variable.
+- Análisis de separación entre tracks (peldaño y eje del viento) en inicio y fin de tramo.
+- Mejoras en leyendas, visualización y tablas comparativas.
+- Optimización de utilidades y flujo de usuario en editor y visor de metadatos.
+
+### English 🇬🇧
+
+- **New:** Analysis of track separation both over the “ladder rung” (perpendicular to wind) and along the wind axis (progression towards the mark/barlo/downwind) at the start and end of the selected leg.
+- **New:** Comparative table for distance, leg type (upwind, downwind/reach), leading boat, and metric (lateral/longitudinal).
+- **New:** Now supports importing and auto-loading metadata files (`-meta-data.json`) together with GPX files. Metadata includes TWD, TWS, start minute, notes, and custom marks/buoys.
+- **New:** Full support for editing and exporting reusable metadata in JSON format across sessions.
+- Improved track comparison section: now includes start/end date and time.
+- Map visualization improvement: reduced marker size for start/end points and ladder lines for better clarity when zoomed in.
+- Optimization of metric calculations (COG, TWA, circular stddev, etc.).
+- Enhanced bilingual captions and explanations throughout.
+- Updated dependencies and refactored core sailing functions in `utils.py`.
+- Full compatibility with GPX, CSV, and tracks of variable frequency maintained.
+- Track separation analysis (ladder and wind axis) at start and end of selected segment.
+- Improved legends, visualization, and comparative tables.
+- Optimized utilities and user workflow in metadata editor and viewer.
+
 ---
 
 ## [v1.1.0] - 2025-07-24

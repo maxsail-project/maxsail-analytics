@@ -83,6 +83,22 @@ def filtrar_por_minuto(df, min_ini, min_fin):
     df['minutes'] = (df['time'] - t0).dt.total_seconds() / 60
     return df[(df['minutes'] >= min_ini) & (df['minutes'] <= min_fin)].copy()
 
+def filtrar_por_timestamp(df, ts_ini, ts_fin):
+    df = df.copy()
+    if ts_ini:
+        try:
+            ts_ini = pd.to_datetime(ts_ini)
+            df = df[df['time'] >= ts_ini]
+        except Exception as e:
+            st.warning(f"Timestamp de inicio inválido: {ts_ini}")
+    if ts_fin:
+        try:
+            ts_fin = pd.to_datetime(ts_fin)
+            df = df[df['time'] <= ts_fin]
+        except Exception as e:
+            st.warning(f"Timestamp de fin inválido: {ts_fin}")
+    return df
+
 # --- Main ---
 if uploaded_file:
     gpx = gpxpy.parse(uploaded_file)
@@ -94,10 +110,17 @@ if uploaded_file:
     # --- Sidebar: filtros de inicio/fin (en minutos y segundos) ---
     st.sidebar.header("🎚️ Selección de tramo")
     min_duration = int(total_duration)
+
+    # Calcular los valores exactos del último punto
+    last_time = df['time'].iloc[-1]
+    start_time = df['time'].iloc[0]
+    delta_seconds = (last_time - start_time).total_seconds()
+    last_minute = int(delta_seconds // 60)
+    last_second = int(delta_seconds % 60)
     min_ini = st.sidebar.number_input("Minuto inicial", min_value=0, max_value=min_duration, value=0, step=1)
     sec_ini = st.sidebar.number_input("Segundo inicial", min_value=0, max_value=59, value=0, step=5)
-    min_fin = st.sidebar.number_input("Minuto final", min_value=0, max_value=min_duration, value=min_duration, step=1)
-    sec_fin = st.sidebar.number_input("Segundo final", min_value=0, max_value=59, value=0, step=5)
+    min_fin = st.sidebar.number_input("Minuto final", min_value=0, max_value=min_duration, value=last_minute, step=1)
+    sec_fin = st.sidebar.number_input("Segundo final", min_value=0, max_value=59, value=last_second, step=5)
     start_min = min_ini + sec_ini / 60
     end_min = min_fin + sec_fin / 60
     start_min, end_min = st.sidebar.slider(
@@ -105,6 +128,15 @@ if uploaded_file:
         0.0, float(total_duration),
         (start_min, end_min),
         step=0.5
+    )
+    st.sidebar.markdown("#### (Opcional) Recorte por fecha/hora exacta")
+    timestamp_inicio = st.sidebar.text_input(
+        "Timestamp de inicio YYYY-MM-DD HH:MM:SS+00:00 (UTC)", 
+        value=""
+    )
+    timestamp_fin = st.sidebar.text_input(
+        "Timestamp de fin YYYY-MM-DD HH:MM:SS+00:00 (UTC)", 
+        value=""
     )
 
     # --- Panel principal: información del track ---
@@ -115,8 +147,11 @@ if uploaded_file:
     meta_df.columns = ['Valor']
     st.table(meta_df)
 
-    # --- Recorte según tramo seleccionado ---
-    df_recorte = filtrar_por_minuto(df, start_min, end_min)
+    # --- Recorte según tramo seleccionado o timestamp ---
+    if timestamp_inicio.strip() or timestamp_fin.strip():
+        df_recorte = filtrar_por_timestamp(df, timestamp_inicio.strip(), timestamp_fin.strip())
+    else:
+        df_recorte = filtrar_por_minuto(df, start_min, end_min)
 
     # --- Mapa combinado: track original + track recortado ---
     st.subheader("🗺️ Visualización comparada: original (gris) y recorte (rojo)")
