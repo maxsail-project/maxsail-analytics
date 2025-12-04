@@ -7,3 +7,4 @@ altair
 pydeck
 scipy
 requests
+haversine
