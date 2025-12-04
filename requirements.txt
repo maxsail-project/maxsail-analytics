@@ -8,3 +8,4 @@ pydeck
 scipy
 requests
 haversine
+matplotlib
