@@ -10,7 +10,7 @@ REM === Actualizar pip y setuptools ===
 python -m pip install --upgrade pip setuptools
 
 REM === Instalar dependencias básicas ===
-pip install streamlit pydeck pandas altair requests scipy gpxpy pyproj numpy
+pip install streamlit gpxpy pyproj pandas numpy altair pydeck scipy requests haversine matplotlib
 
 REM === Guardar requerimientos ===
 :: pip freeze > requirements.txt
