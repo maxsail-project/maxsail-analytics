@@ -5,7 +5,7 @@
 
 **Sailing Data, Better Decisions**
 
-[maxSail-analytics](https://maxsail-analytics.streamlit.app/) · [maxSail GPX Cutter](https://maxsail-gpx-cutter.streamlit.app/)
+[maxSail-analytics](https://maxsail-analytics.streamlit.app/) · [maxSail GPX Cutter](https://maxsail-gpx-cutter.streamlit.app/) - [maxSail Meta Data](https://maxsail-meta-data.streamlit.app/)
 
 Puedes descargar los GPX de este repo para hacer pruebas o mejor aún: usar los tuyos.  
 You can download the GPX files from this repo for testing, or even better: use your own.
