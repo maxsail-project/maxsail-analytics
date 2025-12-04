@@ -957,9 +957,7 @@ import matplotlib.pyplot as plt
 
 st.subheader("🌬️ Rosa de COG – Frecuencia (10°)")
 st.markdown("""
-Gráfico con **rosa de COG** representa los porcentajes de tiempo en los que el barco navegó con determinados COG. Cada barra representa
-- La dirección representa el rumbo del barco
-- La longitud de la barra representa el % del tiempo estuvo navegando en ese rumbo
+La dirección de la barra representa el rumbo (COG) del barco y la longitud representa el % del tiempo estuvo navegando en ese rumbo.
 """)
 
 # Bins: 36 sectores de 10°
@@ -1718,3 +1716,4 @@ with st.sidebar:
     st.markdown("---")
 
     st.markdown("**Versión:** v1.2.0-beta  \n[Changelog](https://github.com/maxsail-project/maxsail-analytics/blob/main/CHANGELOG.md)")
+
