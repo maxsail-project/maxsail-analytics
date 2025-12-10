@@ -59,27 +59,31 @@ st.sidebar.markdown("### Importar metadatos")
 nombre_base = os.path.splitext(gpx_file.name)[0]
 nombre_metadata = f"{nombre_base}-meta-data.json"
 meta_file = st.sidebar.file_uploader(
-    f"Archivo metadatos previo ({nombre_metadata})", type=["json"], key="meta_file"
+    f"Archivo metadatos previo ({nombre_metadata})",
+    type=["json"],
+    key="meta_file"
 )
-
-# Inicialización de session_state antes de widgets
-if "meta" not in st.session_state:
-    st.session_state.meta = {"TWD": 0, "TWS": 0, "TWSG": 0, "MINUTO_SALIDA": 5, "NOTAS": ""}
-if "notas" not in st.session_state:
-    st.session_state["notas"] = ""
-if "balizas" not in st.session_state:
-    st.session_state.balizas = []
 
 if meta_file:
     meta_loaded = json.load(meta_file)
-    print("DEBUG import meta keys:", list(meta_loaded.keys()))
 
-    st.session_state.meta["TWD"] = int(meta_loaded.get("TWD", st.session_state.meta["TWD"]))
-    st.session_state.meta["TWS"] = int(meta_loaded.get("TWS", st.session_state.meta["TWS"]))
-    st.session_state.meta["TWSG"] = int(meta_loaded.get("TWSG", st.session_state.meta["TWSG"]))
-    st.session_state.meta["MINUTO_SALIDA"] = int(meta_loaded.get("MINUTO_SALIDA", st.session_state.meta["MINUTO_SALIDA"]))
-    st.session_state["notas"] = meta_loaded.get("NOTAS", st.session_state["notas"])
+    # Actualizar metadatos internos
+    st.session_state.meta["TWD"] = int(meta_loaded.get("TWD", 0))
+    st.session_state.meta["TWS"] = int(meta_loaded.get("TWS", 0))
+    st.session_state.meta["TWSG"] = int(meta_loaded.get("TWSG", 0))
+    st.session_state.meta["MINUTO_SALIDA"] = int(meta_loaded.get("MINUTO_SALIDA", 5))
+    st.session_state.meta["NOTAS"] = meta_loaded.get("NOTAS", "")
+
+    # ACTUALIZAR LOS WIDGETS
+    st.session_state.twd = st.session_state.meta["TWD"]
+    st.session_state.tws = st.session_state.meta["TWS"]
+    st.session_state.twsg = st.session_state.meta["TWSG"]
+    st.session_state.minuto_salida = st.session_state.meta["MINUTO_SALIDA"]
+    st.session_state.notas = st.session_state.meta["NOTAS"]
+
+    # Balizas
     st.session_state.balizas = meta_loaded.get("BALIZAS", [])
+
     st.success("Metadatos importados correctamente.")
 
 # =========================================================
