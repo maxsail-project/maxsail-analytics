@@ -7,7 +7,7 @@ import pydeck as pdk
 import gpxpy
 
 # --------- MAPTILER CONFIG ---------
-MAPTILER_KEY = os.getenv("MAPTILER_KEY", "YOUR_FALLBACK_DEV_KEY")
+MAPTILER_KEY = "1TpHMPPswY7nGJWlOXjY"
 MAPTILER_STYLES = {
     "Base": f"https://api.maptiler.com/maps/backdrop/style.json?key={MAPTILER_KEY}",
     "Mapa": f"https://api.maptiler.com/maps/landscape/style.json?key={MAPTILER_KEY}",
