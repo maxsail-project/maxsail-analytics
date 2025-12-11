@@ -107,23 +107,41 @@ def gpx_file_to_df(gpx_file, file_name):
     for track in gpx.tracks:
         for segment in track.segments:
             for point in segment.points:
+                # Inicializar prev_point en el primer punto válido
                 if prev_point is None:
                     prev_point = point
                     continue
+                # Saltar puntos duplicados
+                if point.latitude == prev_point.latitude and point.longitude == prev_point.longitude:
+                    continue
                 lat, lon = point.latitude, point.longitude
                 distance, COG, _ = calculate_distance_bearing(prev_point.latitude, prev_point.longitude, lat, lon)
-                time_diff = (point.time - prev_point.time).total_seconds()
+                #if distance < 1.0: #descartar puntos muy cercanos / ruido
+                #    continue
+
+                # Normalizar timestamps para evitar mezcla UTC/naive
+                curr_time = point.time.replace(tzinfo=None)
+                prev_time = prev_point.time.replace(tzinfo=None)
+
+                time_diff = (curr_time - prev_time).total_seconds()
                 SOG = calculate_velocity(prev_point.latitude, prev_point.longitude, lat, lon, time_diff)
+                UTC = curr_time
+
+                #if SOG < 0.9: #descartar puntos parados / muy lentos
+                #    continue
+                # --- LOG cuando la velocidad supera 6 nudos ---
+                if SOG is not None and SOG > 6:
+                    print(
+                        "\n[ALERTA VELOCIDAD ALTA]",
+                        f"\n  PREV: UTC={prev_point.time}, LAT={prev_point.latitude:.7f}, LON={prev_point.longitude:.7f}",
+                        f"\n  CURR: UTC={point.time}, LAT={lat:.7f}, LON={lon:.7f}",
+                        f"\n  distance={distance:.3f} m, dt={time_diff:.1f} s, SOG={SOG:.2f} kn",
+                        "\n-------------------------------------------------------------"
+                    )
+
                 TWA = estimate_twa(COG, TWD)
                 VMG = calculate_vmg(SOG, TWA)
-                prev_point = point
-                if SOG < 0.9: #descartar puntos parados
-                    continue
-
-                if distance < 1.0: #descartar puntos muy cercanos / duplicados
-                    continue
-
-                UTC = point.time
+                # Construir fila del DataFrame track
                 row = {
                     'Lat': lat,
                     'Lon': lon,
@@ -136,6 +154,9 @@ def gpx_file_to_df(gpx_file, file_name):
                     'VMG': VMG,
                 }
                 rows.append(row)
+                # Actualizar prev_point para el siguiente loop
+                prev_point = point
+
     df = pd.DataFrame(rows)
     if not df.empty and 'UTC' in df.columns:
         df['UTC'] = pd.to_datetime(df['UTC']).dt.tz_localize(None)
