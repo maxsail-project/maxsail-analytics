@@ -117,8 +117,12 @@ def gpx_file_to_df(gpx_file, file_name):
                 TWA = estimate_twa(COG, TWD)
                 VMG = calculate_vmg(SOG, TWA)
                 prev_point = point
-                if SOG < 0.9:
+                if SOG < 0.9: #descartar puntos parados
                     continue
+
+                if distance < 1.0: #descartar puntos muy cercanos / duplicados
+                    continue
+
                 UTC = point.time
                 row = {
                     'Lat': lat,
@@ -164,7 +168,7 @@ def distance_on_ladder(lat1, lon1, lat2, lon2, twd_deg):
     que pasa por (lat1, lon1) y el punto (lat2, lon2).
     Signo: positivo si lat2/lon2 está a barlovento de lat1/lon1, negativo si a sotavento.
     """
-    R = 6371000
+    R = 6371000 # Radio de la Tierra en metros
     dlat = np.radians(lat2 - lat1)
     dlon = np.radians(lon2 - lon1)
     xm = R * dlon * np.cos(np.radians((lat1 + lat2) / 2))
@@ -191,7 +195,7 @@ def ladder_position(lat, lon, lat_ref, lon_ref, twd_deg):
     Proyección (en metros) de un punto sobre el eje perpendicular al viento,
     respecto a un origen (lat_ref, lon_ref).
     """
-    R = 6371000
+    R = 6371000 # Radio de la Tierra en metros
     dlat = np.radians(lat - lat_ref)
     dlon = np.radians(lon - lon_ref)
     xm = R * dlon * np.cos(np.radians((lat + lat_ref) / 2))
