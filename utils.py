@@ -107,16 +107,6 @@ def gpx_file_to_df(gpx_file, file_name):
     for track in gpx.tracks:
         for segment in track.segments:
             for point in segment.points:
-
-            # --- CORRECCIÓN A: descartar puntos duplicados ---
-            if prev_point is not None:
-                dist_dup, _, _ = calculate_distance_bearing(
-                    prev_point.latitude, prev_point.longitude,
-                    point.latitude, point.longitude
-                )
-                if dist_dup == 0:
-                    continue
-            # -------------------------------------------------
                 if prev_point is None:
                     prev_point = point
                     continue
