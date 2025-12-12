@@ -88,7 +88,13 @@ def estimate_wind_direction(lat_start, lon_start, lat_end, lon_end):
     return (COG + 180) % 360
 
 def gpx_file_to_df(gpx_file, file_name):
-    """Convierte un archivo GPX en un DataFrame normalizado para el visor."""
+    """Convierte un archivo GPX en un DataFrame normalizado para el visor.
+    - Normaliza timestamps para calcular time_diff correctamente.
+    - Elimina puntos duplicados exactos (lat/lon).
+    - Calcula Dist, COG, SOG, TWA y VMG.
+    - Gestiona prev_point para evitar picos falsos de velocidad.
+    - Devuelve un DataFrame limpio listo para el visor.
+    """
     gpx = gpxpy.parse(gpx_file)
     rows = []
     prev_point = None
@@ -116,8 +122,6 @@ def gpx_file_to_df(gpx_file, file_name):
                     continue
                 lat, lon = point.latitude, point.longitude
                 distance, COG, _ = calculate_distance_bearing(prev_point.latitude, prev_point.longitude, lat, lon)
-                #if distance < 1.0: #descartar puntos muy cercanos / ruido
-                #    continue
 
                 # Normalizar timestamps para evitar mezcla UTC/naive
                 curr_time = point.time.replace(tzinfo=None)
@@ -126,19 +130,6 @@ def gpx_file_to_df(gpx_file, file_name):
                 time_diff = (curr_time - prev_time).total_seconds()
                 SOG = calculate_velocity(prev_point.latitude, prev_point.longitude, lat, lon, time_diff)
                 UTC = curr_time
-
-                #if SOG < 0.9: #descartar puntos parados / muy lentos
-                #    continue
-                # --- LOG cuando la velocidad supera 6 nudos ---
-                if SOG is not None and SOG > 6:
-                    print(
-                        "\n[ALERTA VELOCIDAD ALTA]",
-                        f"\n  PREV: UTC={prev_point.time}, LAT={prev_point.latitude:.7f}, LON={prev_point.longitude:.7f}",
-                        f"\n  CURR: UTC={point.time}, LAT={lat:.7f}, LON={lon:.7f}",
-                        f"\n  distance={distance:.3f} m, dt={time_diff:.1f} s, SOG={SOG:.2f} kn",
-                        "\n-------------------------------------------------------------"
-                    )
-
                 TWA = estimate_twa(COG, TWD)
                 VMG = calculate_vmg(SOG, TWA)
                 # Construir fila del DataFrame track
@@ -158,8 +149,15 @@ def gpx_file_to_df(gpx_file, file_name):
                 prev_point = point
 
     df = pd.DataFrame(rows)
+
     if not df.empty and 'UTC' in df.columns:
         df['UTC'] = pd.to_datetime(df['UTC']).dt.tz_localize(None)
+
+    # --- SOG smooth / suavizada (SOGS) ---
+    if not df.empty and 'SOG' in df.columns:
+        # Media móvil de 5 puntos (centrada)
+        df['SOGS'] = df['SOG'].rolling(window=5, center=True, min_periods=1).mean()
+
     return df
 
 
