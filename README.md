@@ -3,9 +3,13 @@
 
 # maxSail-analytics
 
-**Sailing Data, Better Decisions**
+**Sailing Data, Better Decisions**  
+Analyze, compare and understand your sailing performance.
 
-[maxSail-analytics](https://maxsail-analytics.streamlit.app/) · [maxSail GPX Cutter](https://maxsail-gpx-cutter.streamlit.app/) - [maxSail Meta Data](https://maxsail-meta-data.streamlit.app/)
+**Con datos de navegación, mejores decisiones**  
+Analiza, compara y comprende tu rendimiento en el agua.
+
+[maxSail-analytics](https://maxsail-analytics.streamlit.app/) · [maxSail GPX Cutter](https://maxsail-gpx-cutter.streamlit.app/) · [maxSail Meta Data](https://maxsail-meta-data.streamlit.app/)
 
 Puedes descargar los GPX de este repo para hacer pruebas o mejor aún: usar los tuyos.  
 You can download the GPX files from this repo for testing, or even better: use your own.
@@ -14,22 +18,20 @@ You can download the GPX files from this repo for testing, or even better: use y
 
 ## Índice / Table of Contents
 
-- [maxSail-analytics \& maxSail GPX Cutter](#maxsail-analytics--maxsail-gpx-cutter)
-  - [Índice / Table of Contents](#índice--table-of-contents)
-  - [Descripción general / Overview](#descripción-general--overview)
-  - [maxSail-analytics](#maxsail-analytics)
-    - [Características principales / Main features](#características-principales--main-features)
-  - [maxSail GPX Cutter](#maxsail-gpx-cutter)
-  - [maxSail Meta Data](#maxsail-meta-data)
-  - [Instalación / Installation](#instalación--installation)
-  - [Uso básico / Basic usage](#uso-básico--basic-usage)
-  - [Formato esperado del archivo CSV / Expected CSV format](#formato-esperado-del-archivo-csv--expected-csv-format)
-  - [Sobre el autor / About the author](#sobre-el-autor--about-the-author)
-  - [Wiki](#wiki)
-  - [Contacto / Contact](#contacto--contact)
-  - [Aviso legal / Disclaimer](#aviso-legal--disclaimer)
-  - [Licencia / License](#licencia--license)
-  - [Contribuciones / Contributions](#contribuciones--contributions)
+- [Descripción general / Overview](#descripción-general--overview)
+- [maxSail-analytics](#maxsail-analytics)
+  - [Características principales / Main features](#características-principales--main-features)
+- [maxSail GPX Cutter](#maxsail-gpx-cutter)
+- [maxSail Meta Data](#maxsail-meta-data)
+- [Instalación / Installation](#instalación--installation)
+- [Uso básico / Basic usage](#uso-básico--basic-usage)
+- [Formato esperado del archivo CSV / Expected CSV format](#formato-esperado-del-archivo-csv--expected-csv-format)
+- [Wiki](#wiki)
+- [Sobre el autor / About the author](#sobre-el-autor--about-the-author)
+- [Contacto / Contact](#contacto--contact)
+- [Aviso legal / Disclaimer](#aviso-legal--disclaimer)
+- [Licencia / License](#licencia--license)
+- [Contribuciones / Contributions](#contribuciones--contributions)
 
 ---
 ## Descripción general / Overview
@@ -51,7 +53,6 @@ You can download the GPX files from this repo for testing, or even better: use y
 ## maxSail-analytics
 
 [maxSail-analytics en Streamlit](https://maxsail-analytics.streamlit.app/)  
-[maxSail-analytics on Streamlit](https://maxsail-analytics.streamlit.app/)
 
 **maxSail-analytics** es una herramienta open source para visualizar, analizar y comparar tracks GPS de regatas y entrenamientos de vela.  
 **maxSail-analytics** is an open-source tool for visualizing, analyzing, and comparing GPS tracks from sailing races and training sessions.
@@ -75,6 +76,8 @@ It allows you to load GPX or CSV files, display tracks on an interactive map, co
   Compatible with GPX and normalized CSV files.
 - Interfaz intuitiva y lista para compartir con la flota.  
   Intuitive UI, ready to share with your fleet.
+- Velocidad suavizada (SOGS) para reducir picos falsos por ruido GPS.  
+  Smoothed speed (SOGS) to reduce false spikes caused by GPS noise.
 - **Open source y multiplataforma**.  
   **Open source and cross-platform**.
 
@@ -151,18 +154,29 @@ The viewer expects normalized CSV files with at least the following columns:
 | ---------------- | ------------------------------------------------------------------- | ------------------------ |
 | Lat              | Latitud (decimal, WGS84) / Latitude (decimal)                       | −34.945917               |
 | Lon              | Longitud (decimal, WGS84) / Longitude (decimal)                     | −55.932721               |
-| UTC              | Fecha y hora UTC / UTC datetime (ISO 8601 or YYYY-MM-DD HH\:MM\:SS) | 2024-06-27 14:23:15      |
+| UTC              | Fecha y hora UTC / UTC datetime (ISO 8601 or YYYY-MM-DD HH:MM:SS)   | 2024-06-27 14:23:15      |
 | COG              | Rumbo sobre el fondo (°) / Course Over Ground (°)                   | 89.0                     |
 | SOG              | Velocidad sobre el fondo (knots) / Speed Over Ground (knots)        | 5.33                     |
 | Dist             | Distancia entre puntos (m) / Distance between points (m)            | 8.2                      |
+| SOGS (opt)       | Velocidad suavizada (knots) / Smoothed Speed Over Ground (knots)    | 5.10                     |
+| TWA (opt)        | Ángulo real al viento (°) / True Wind Angle (°)                     | -42                      |
+| VMG (opt)        | Velocity Made Good (knots)                                          | 3.85                     |
+| HEEL (opt)       | Escora (°) / Heel angle (°)                                         | 18.5                     |
 | SourceFile (opt) | Nombre del archivo / Source filename                                | 2025-07-ESP30782-P01.GPX |
 
 **Notas / Notes:**
 
-- Columnas adicionales serán ignoradas salvo que coincidan con el formato interno (TWA, VMG, etc.). Extra columns will be ignored unless they match internal format (TWA, VMG, etc.).
-- `UTC` debe estar en un formato reconocible por pandas. `UTC` must be in a pandas-recognized datetime format.
-- Cada archivo debe tener al menos esas columnas. Each file must contain at least those columns.
-- Si no hay `SourceFile`, se usará el nombre del archivo. If `SourceFile` is missing, the filename will be used as track ID.
+- Las columnas marcadas como `(opt)` son opcionales y se utilizarán automáticamente si están presentes.\
+  Columns marked as `(opt)` are optional and will be used automatically if present.
+- Columnas adicionales serán ignoradas salvo que coincidan con el formato interno (por ejemplo `TWA`, `VMG`, `SOGS`, `HEEL`).\
+  Extra columns will be ignored unless they match the internal format (e.g. `TWA`, `VMG`, `SOGS`, `HEEL`).
+- `UTC` debe estar en un formato reconocible por pandas.\
+  `UTC` must be in a pandas-recognized datetime format.
+- Cada archivo debe contener al menos las columnas obligatorias.\
+  Each file must contain at least the mandatory columns.
+- Si no hay `SourceFile`, se usará el nombre del archivo.\
+  If `SourceFile` is missing, the filename will be used as the track ID.
+
 
 ## Sobre el autor / About the author
 
