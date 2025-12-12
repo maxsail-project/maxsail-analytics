@@ -1,7 +1,7 @@
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://maxsail-analytics.streamlit.app/)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/maxsail-project/maxsail-analytics)
 
-# maxSail-analytics & maxSail GPX Cutter
+# maxSail-analytics
 
 **Sailing Data, Better Decisions**
 
