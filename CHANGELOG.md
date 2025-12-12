@@ -5,11 +5,50 @@ All new features, changes, and fixes for **maxSail-analytics** will be listed he
 
 ---
 
-## [v1.2.1] - 2025-12-05
+## [v1.2.1] - 2025-12-12
 
 ### Español 🇪🇸
 
-- Actualización de sentencias de instalación y requirements.txt. Modificaciones menores
+#### Nuevas funcionalidades
+- **SOGS (velocidad suavizada):** Añadida al procesamiento en `utils.py` mediante media móvil centrada e integrada en los gráficos de velocidad para mejorar la estabilidad visual en tramos afectados por ruido GPS.
+
+#### Correcciones
+- Corregido el cálculo de `time_diff` y la gestión de `prev_point`, eliminando picos de velocidad falsos.
+- Eliminación de puntos duplicados exactos (lat/lon) y aplicación de un umbral mínimo de distancia para evitar distorsiones en la velocidad.
+- Correcciones en la carga de metadatos (TWD, TWS, TWSG, minuto de salida y notas).
+- Añadida dependencia faltante `haversine` para evitar errores de importación.
+
+#### Refactor y limpieza
+- Eliminado gráfico redundante **COG vs COG**.
+- Reordenados los gráficos para mejorar el flujo visual y la claridad del visor.
+- Ajustes menores de texto y visualización en la Rosa de COG.
+
+#### Documentación
+- Actualizado README con nueva sección **maxSail Meta Data** y mejoras en instrucciones de instalación.
+- Actualización del CHANGELOG para reflejar esta versión.
+
+---
+
+### English 🇬🇧
+
+#### New Features
+- **SOGS (Smoothed Speed):** Added to `utils.py` using a centered moving average and integrated into the speed charts to improve visual stability in GPS-noisy segments.
+
+#### Fixes
+- Fixed `time_diff` calculation and `prev_point` handling, removing false speed spikes.
+- Removed exact duplicate GPX points and applied a minimum distance threshold to avoid unrealistic speed values.
+- Fixed metadata loading (TWD, TWS, TWSG, start minute and notes).
+- Added missing dependency `haversine` to prevent import errors.
+
+#### Refactor / Cleanup
+- Removed redundant **COG vs COG** chart.
+- Reorganized chart layout to improve visual flow and clarity.
+- Minor visualization and labeling improvements in the COG Rose.
+
+#### Documentation
+- Updated README with the new **maxSail Meta Data** section and enhanced installation notes.
+- Updated CHANGELOG with details for this release.
+
 ---
 
 ## [v1.2.0] - 2025-12-04
