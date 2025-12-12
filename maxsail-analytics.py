@@ -717,10 +717,7 @@ if not df_plot.empty:
         df_plot['Tiempo_relativo_min'] = df_plot['Tiempo_relativo_sec'] / 60.0
 
 
-
 ##### FIN BLOQUE PARA ESCALA DE TIEMPO
-
-
 
 # --- Construye la tabla base ---
 tabla_metricas = {}
@@ -800,8 +797,6 @@ if not df_plot.empty:
     ).properties(width=900, height=250)
 
     # --- Combinar ---
-    #chart_sog_con_salida = chart_sog + linea_salida
-    #st.altair_chart(chart_sog_con_salida, use_container_width=True)
     st.altair_chart(chart_sog, use_container_width=True)
 
 # Arma los datos para la tabla resumen
@@ -827,87 +822,10 @@ tabla_sog = pd.DataFrame(
 
 st.dataframe(tabla_sog, use_container_width=True)
 
-# --- EVOLUCIÓN DE SOG y COG ---
-st.subheader("📈 Evolución de SOG y COG (superpuesto)")
-def plot_sog_cog_superpuesto(df, track_color, track_label):
-    if df.empty:
-        return None
-
-    base = alt.Chart(df).encode(
-        x=alt.X('UTC:T', title='Hora GPS'),
-        #x=alt.X('Tiempo_relativo_min:Q', title='Tiempo relativo a salida (min)'),
-    )
-    sog_line = base.mark_line(
-        color=track_color,
-        strokeWidth=2,
-        opacity=1.0
-    ).encode(
-        y=alt.Y(
-            'SOG:Q',
-            title='SOG (knots)'
-            # Opcional: axis=alt.Axis(values=[...]) si quieres ticks específicos
-        )
-    )
-
-    cog_line = base.mark_line(
-        color='#333333',
-        strokeWidth=1.2,
-        opacity=1.0
-    ).encode(
-        y=alt.Y(
-            'COG:Q',
-            title='COG (°)',
-            scale=alt.Scale(domain=[0, 360]),
-            axis=alt.Axis(
-                values=list(range(0, 361, 30)),  # 0,30,60,...,360
-                tickCount=13
-            )
-        )
-    )
-
-    chart = alt.layer(
-        sog_line,
-        cog_line
-    ).resolve_scale(
-        y='independent'   # mantiene escalas independientes para SOG y COG
-    ).properties(
-        width=900, height=250,  
-        title=f"SOG (color) y COG (gris) - {track_label}"
-    )
-
-    return chart
-
-
-# Para el track azul
-if not df1_plot.empty:
-    chart_azul = plot_sog_cog_superpuesto(df1_plot, '#0064FF', f"{track1} (azul)")
-    st.altair_chart(chart_azul, use_container_width=True)
-
-# Para el track naranja
-if not df2_plot.empty:
-    chart_naranja = plot_sog_cog_superpuesto(df2_plot, '#FF6400', f"{track2} (naranja)")
-    st.altair_chart(chart_naranja, use_container_width=True)
-
-
-# --- EVOLUCIÓN DE COG ---
-st.subheader("📈 Evolución de COG (°)")
+# --- EVOLUCIÓN DE SOGS suavizado / smooth ---
+st.subheader("📈 Evolución de SOGS suavizado (knots)")
 if not df_plot.empty:
-    chart_cog = alt.Chart(df_plot).mark_line(opacity=0.9).encode(
-        x=alt.X('UTC:T', title='Hora GPS'),
-        #x=alt.X('Tiempo_relativo_min:Q', title='Tiempo relativo a salida (min)'),
-        y=alt.Y(
-            'COG:Q',
-            title='COG (°)',
-            scale=alt.Scale(domain=[0, 360]),
-            axis=alt.Axis(
-                values=list(range(0, 361, 30)),
-                tickCount=13
-            )
-        ),
-        color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top'))
-    ).properties(width=900, height=300)
-
-        # --- Línea vertical en minuto de salida ---
+    # --- Línea vertical en minuto de salida ---
     linea_salida = alt.Chart(pd.DataFrame({'Tiempo_relativo_min': [0]})).mark_rule(
         color='black',
         strokeDash=[4, 4],
@@ -915,42 +833,44 @@ if not df_plot.empty:
     ).encode(
         x='Tiempo_relativo_min:Q'
     )
-    # Combina el gráfico de COG con la línea de salida
-    #chart_cog = chart_cog + linea_salida
-    st.altair_chart(chart_cog, use_container_width=True)
 
+    # --- Gráfico de SOG ---
+    chart_sog = alt.Chart(df_plot).mark_line(opacity=0.9).encode(
+        x=alt.X('UTC:T', title='Hora GPS'),
+        #x=alt.X('Tiempo_relativo_min:Q', title='Tiempo relativo a salida (min)'),
+        y=alt.Y('SOGS:Q', title='SOGS (knots)'),
+        color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top'))
+    ).properties(width=900, height=250)
 
-# Arma los datos para la tabla resumen de COG
-cog_data = {}
+    # --- Combinar ---
+    st.altair_chart(chart_sog, use_container_width=True)
+
+# Arma los datos para la tabla resumen
+sog_data = {}
+track_labels = [f"{track1} (azul)", f"{track2} (naranja)"]
+track_dfs = [df1_plot, df2_plot]
+
 for track_label, track_df in zip(track_labels, track_dfs):
-    if not track_df.empty and not track_df['COG'].isnull().all():
-        # min/máx circulares
-        mn, mx, span = circular_min_max_deg(track_df['COG'])
-        cog_min = f"{mn:.1f}"
-        cog_max = f"{mx:.1f}"
-        # promedio y std circulares
-        cog_avg = f"{circmean(track_df['COG'].dropna(), high=360, low=0):.1f}"
-        cog_std = f"{circstd(track_df['COG'].dropna(), high=360, low=0):.1f}"
+    if not track_df.empty and not track_df['SOGS'].isnull().all():
+        idx_max_sog = track_df['SOGS'].idxmax()
+        idx_min_sog = track_df['SOGS'].idxmin()
+        sog_max = f"{track_df['SOGS'].max():.2f} ({track_df.loc[idx_max_sog, 'TWA']:.1f}°)"
+        sog_min = f"{track_df['SOGS'].min():.2f} ({track_df.loc[idx_min_sog, 'TWA']:.1f}°)"
+        sog_avg = f"{track_df['SOGS'].mean():.2f} ({mean_circ_signed_deg(track_df['TWA']):.1f}°)"
     else:
-        cog_min = cog_max = cog_avg = cog_std = "-"
+        sog_max = sog_min = sog_avg = "-"
+    sog_data[track_label] = [sog_max, sog_min, sog_avg]
 
-    cog_data[track_label] = [cog_min, cog_max, cog_avg, cog_std]
+tabla_sog = pd.DataFrame(
+    sog_data,
+    index=["SOGS máximo knots (TWA)", "SOGS mínimo knots (TWA)", "SOGS promedio knots (TWA medio)"]
+)
 
-tabla_cog = pd.DataFrame(cog_data,index=["Mínimo", "Máximo", "Promedio", "Dispersión (std)*"])
+st.dataframe(tabla_sog, use_container_width=True)
 
-# añade el rango circular (span) a la tabla
-cog_span_data = {}
-for track_label, track_df in zip(track_labels, track_dfs):
-    if not track_df.empty and not track_df['COG'].isnull().all():
-        _, _, span = circular_min_max_deg(track_df['COG'])
-        cog_span_data[track_label] = f"{span:.1f}"
-    else:
-        cog_span_data[track_label] = "-"
-tabla_cog.loc["Rango circular (°)"] = cog_span_data
-st.dataframe(tabla_cog, use_container_width=True)
-st.caption(
-        "*Si es baja → el barco mantuvo rumbo muy estable. Si es alta → hubo cambios de rumbo (maniobras, zigzags, etc)"
-    )
+
+
+
 
 # === Rosa de COG (frecuencia) – 10° por sector, colores de tracks ===
 import matplotlib.pyplot as plt
@@ -1038,6 +958,119 @@ with col2:
     else:
         st.info("Selecciona un Track 2 para ver su rosa de COG.")
 
+# Arma los datos para la tabla resumen de COG
+cog_data = {}
+for track_label, track_df in zip(track_labels, track_dfs):
+    if not track_df.empty and not track_df['COG'].isnull().all():
+        # min/máx circulares
+        mn, mx, span = circular_min_max_deg(track_df['COG'])
+        cog_min = f"{mn:.1f}"
+        cog_max = f"{mx:.1f}"
+        # promedio y std circulares
+        cog_avg = f"{circmean(track_df['COG'].dropna(), high=360, low=0):.1f}"
+        cog_std = f"{circstd(track_df['COG'].dropna(), high=360, low=0):.1f}"
+    else:
+        cog_min = cog_max = cog_avg = cog_std = "-"
+
+    cog_data[track_label] = [cog_min, cog_max, cog_avg, cog_std]
+
+tabla_cog = pd.DataFrame(cog_data,index=["COG Mínimo", "COG Máximo", "COG Promedio", "Dispersión (std)*"])
+
+# añade el rango circular (span) a la tabla
+cog_span_data = {}
+for track_label, track_df in zip(track_labels, track_dfs):
+    if not track_df.empty and not track_df['COG'].isnull().all():
+        _, _, span = circular_min_max_deg(track_df['COG'])
+        cog_span_data[track_label] = f"{span:.1f}"
+    else:
+        cog_span_data[track_label] = "-"
+tabla_cog.loc["Rango circular (°)"] = cog_span_data
+st.dataframe(tabla_cog, use_container_width=True)
+st.caption(
+        "*Si es baja → el barco mantuvo rumbo muy estable. Si es alta → hubo cambios de rumbo (maniobras, zigzags, etc)"
+    )
+
+# --- EVOLUCIÓN DE SOG y COG ---
+st.subheader("📈 Evolución de SOGS y COG (superpuesto)")
+def plot_sog_cog_superpuesto(df, track_color, track_label):
+    if df.empty:
+        return None
+
+    base = alt.Chart(df).encode(
+        x=alt.X('UTC:T', title='Hora GPS'),
+        #x=alt.X('Tiempo_relativo_min:Q', title='Tiempo relativo a salida (min)'),
+    )
+    sog_line = base.mark_line(
+        color=track_color,
+        strokeWidth=2,
+        opacity=1.0
+    ).encode(
+        y=alt.Y(
+            'SOGS:Q',
+            title='SOGS (knots)'
+            # Opcional: axis=alt.Axis(values=[...]) si quieres ticks específicos
+        )
+    )
+
+    cog_line = base.mark_line(
+        color='#333333',
+        strokeWidth=1.2,
+        opacity=1.0
+    ).encode(
+        y=alt.Y(
+            'COG:Q',
+            title='COG (°)',
+            scale=alt.Scale(domain=[0, 360]),
+            axis=alt.Axis(
+                values=list(range(0, 361, 30)),  # 0,30,60,...,360
+                tickCount=13
+            )
+        )
+    )
+
+    chart = alt.layer(
+        sog_line,
+        cog_line
+    ).resolve_scale(
+        y='independent'   # mantiene escalas independientes para SOG y COG
+    ).properties(
+        width=900, height=250,  
+        title=f"SOGS (color) y COG (gris) - {track_label}"
+    )
+
+    return chart
+
+# Para el track azul
+if not df1_plot.empty:
+    chart_azul = plot_sog_cog_superpuesto(df1_plot, '#0064FF', f"{track1} (azul)")
+    st.altair_chart(chart_azul, use_container_width=True)
+
+# Para el track naranja
+if not df2_plot.empty:
+    chart_naranja = plot_sog_cog_superpuesto(df2_plot, '#FF6400', f"{track2} (naranja)")
+    st.altair_chart(chart_naranja, use_container_width=True)
+
+# --- HISTOGRAMA DE SOG (agrupado si hay dos tracks) ---
+st.subheader("📊 Histograma de SOG (knots)")
+if not df_plot.empty:
+    if not df1_plot.empty and not df2_plot.empty:
+        hist_sog = alt.Chart(df_plot).mark_bar(size=30, opacity=0.7).encode(
+            x=alt.X('SOG:Q', bin=alt.Bin(maxbins=25), title='SOG (knots)'),
+            y=alt.Y('count()', stack=None, title='Frecuencia'),
+            color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top')),
+            xOffset='Track:N',
+            tooltip=['count()', 'Track:N']
+        ).properties(width=900, height=250)
+    else:
+        hist_sog = alt.Chart(df_plot).mark_bar(size=25, opacity=0.7).encode(
+            x=alt.X('SOG:Q', bin=alt.Bin(maxbins=25), title='SOG (knots)'),
+            y=alt.Y('count()', stack=None, title='Frecuencia'),
+            color=alt.Color('Track:N', scale=color_scale),
+            tooltip=['count()']
+        ).properties(width=900, height=250)
+    st.altair_chart(hist_sog, use_container_width=True)
+# --- FIN HISTOGRAMA DE SOG (agrupado si hay dos tracks) ---
+
 # --- EVOLUCIÓN DE VMG ---
 st.subheader("📈 Evolución de VMG (knots)")
 if not df_plot.empty and 'VMG' in df_plot.columns:
@@ -1081,6 +1114,7 @@ tabla_vmg = pd.DataFrame(
     index=["VMG máximo knots, (TWA)", "VMG mínimo knots (TWA)", "VMG promedio knots (TWA medio)"]
 )
 st.dataframe(tabla_vmg, use_container_width=True)
+# --- FIN EVOLUCIÓN DE VMG ---
 
 # --- EVOLUCIÓN DE TWA ----
 st.subheader("📈 Evolución de TWA_abs (°)")
@@ -1098,27 +1132,7 @@ if not df_plot.empty and 'TWA' in df_plot.columns:
     ).properties(width=900, height=300)
     st.altair_chart(chart_twa, use_container_width=True)
     st.caption("negativo amurado a estribor y positivo amurado a babor")
-
-
-# --- HISTOGRAMA DE SOG (agrupado si hay dos tracks) ---
-st.subheader("📊 Histograma de SOG (knots)")
-if not df_plot.empty:
-    if not df1_plot.empty and not df2_plot.empty:
-        hist_sog = alt.Chart(df_plot).mark_bar(size=30, opacity=0.7).encode(
-            x=alt.X('SOG:Q', bin=alt.Bin(maxbins=25), title='SOG (knots)'),
-            y=alt.Y('count()', stack=None, title='Frecuencia'),
-            color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top')),
-            xOffset='Track:N',
-            tooltip=['count()', 'Track:N']
-        ).properties(width=900, height=250)
-    else:
-        hist_sog = alt.Chart(df_plot).mark_bar(size=25, opacity=0.7).encode(
-            x=alt.X('SOG:Q', bin=alt.Bin(maxbins=25), title='SOG (knots)'),
-            y=alt.Y('count()', stack=None, title='Frecuencia'),
-            color=alt.Color('Track:N', scale=color_scale),
-            tooltip=['count()']
-        ).properties(width=900, height=250)
-    st.altair_chart(hist_sog, use_container_width=True)
+# --- FIN EVOLUCIÓN DE TWA ---
 
 # --- DISPERSIÓN SOG vs TWA ---
 st.subheader("📊 SOG vs. TWA (dispersión)")
@@ -1137,7 +1151,7 @@ if not df_plot.empty:
     ).properties(width=900, height=300)
 
     st.altair_chart(scatter_sog_twa, use_container_width=True)
-
+# --- FIN DISPERSIÓN SOG vs TWA ---
 
 # --- DISPERSIÓN VMG vs TWA ---
 st.subheader("📊 VMG vs. TWA (dispersión)")
