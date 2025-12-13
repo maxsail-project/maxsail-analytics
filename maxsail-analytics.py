@@ -40,6 +40,56 @@ def mean_circ_signed_deg(series):
         return np.nan
     return float(circmean(s, high=180, low=-180))
 
+def filtro_tramo_bajo_mapa(min_duration):
+    st.subheader("Selección de tramo temporal")
+
+    ss = st.session_state
+    ss.setdefault("min_ini", 0)
+    ss.setdefault("min_fin", int(min_duration))
+    ss.setdefault("seg_ini", 0)
+    ss.setdefault("seg_fin", 0)
+
+    col_slider, col_seg_ini, col_seg_fin = st.columns([6, 2, 2])
+
+    with col_slider:
+        min_ini, min_fin = st.slider(
+            "Rango de minutos del track",
+            0,
+            int(min_duration),
+            (ss.min_ini, ss.min_fin),
+            step=1
+        )
+
+    with col_seg_ini:
+        seg_ini = st.number_input(
+            "Segundos inicio",
+            min_value=0,
+            max_value=59,
+            value=ss.seg_ini,
+            step=1
+        )
+
+    with col_seg_fin:
+        seg_fin = st.number_input(
+            "Segundos fin",
+            min_value=0,
+            max_value=59,
+            value=ss.seg_fin,
+            step=1
+        )
+
+    ss.min_ini = min_ini
+    ss.min_fin = min_fin
+    ss.seg_ini = seg_ini
+    ss.seg_fin = seg_fin
+
+    start_min = min_ini + seg_ini / 60
+    end_min   = min_fin + seg_fin / 60
+
+    if end_min <= start_min:
+        end_min = start_min + 0.01
+
+    return start_min, end_min
 
 # -----------------------------
 # INICIO APP STREAMLIT
@@ -203,9 +253,9 @@ if meta_data:
     if "TWS" in meta_data: st.sidebar.write(f"TWS: {meta_data['TWS']} kn")
     if "TWSG" in meta_data: st.sidebar.write(f"TWSG: {meta_data['TWSG']} kn")
 #    if "ARCHIVO_TRACK" in meta_data: st.sidebar.write(f"Archivo esperado: {meta_data['ARCHIVO_TRACK']}")
-#    if "NOTAS" in meta_data:
-#        st.sidebar.markdown("**Notas:**")
-#        st.sidebar.code(str(meta_data["NOTAS"]))
+    if "NOTAS" in meta_data:
+        st.sidebar.markdown("**Notas:**")
+        st.sidebar.code(str(meta_data["NOTAS"]))
 
 
 # --- Calcular duración mínima ---
@@ -221,41 +271,6 @@ else:
     min_duration = 0.0
 
 min_duration = int(min_duration)
-
-if "last_track1" not in st.session_state or st.session_state["last_track1"] != track1 or st.session_state["last_track2"] != track2:
-    st.session_state["start_min"] = 0.0
-    st.session_state["end_min"] = float(min_duration)
-    st.session_state["last_track1"] = track1
-    st.session_state["last_track2"] = track2
-
-min_ini = int(st.session_state["start_min"])
-sec_ini = 0
-min_fin = int(st.session_state["end_min"])
-sec_fin = 0
-
-min_ini = st.sidebar.number_input("Minuto inicial", min_value=0, max_value=int(min_duration), value=min_ini, step=1)
-min_fin = st.sidebar.number_input("Minuto final", min_value=0, max_value=int(min_duration), value=min_fin, step=1)
-sec_ini = st.sidebar.number_input("Segundo inicial", min_value=0, max_value=59, value=sec_ini, step=5)
-sec_fin = st.sidebar.number_input("Segundo final", min_value=0, max_value=59, value=sec_fin, step=5)
-
-def to_minutes(mins, secs):
-    return mins + secs/60
-
-start_min = to_minutes(min_ini, sec_ini)
-end_min = to_minutes(min_fin, sec_fin)
-if start_min >= end_min:
-    end_min = min(start_min + 0.5, float(min_duration))
-start_min, end_min = st.sidebar.slider(
-    "Tramo seleccionado",
-    0.0, float(min_duration),
-    (start_min, end_min),
-    step=0.5
-)
-
-st.sidebar.info(
-    "El selector utiliza minutos con decimales; cada decimal representa segundos.\n"
-    "Por ejemplo: **2.50** son **2 minutos 30 segundos**."
-)
 
 # --- Filtrar por tiempo ---
 def filtrar_por_tiempo(df, start_min, end_min):
@@ -273,6 +288,8 @@ def calcular_frecuencia(df):
         return "-"
     return f"{len(df) / dur_sec:.2f}"
 
+# FILTRO DE TRAMO BAJO EL MAPA (NUEVO)
+start_min, end_min = filtro_tramo_bajo_mapa(min_duration)
 
 # --- Calcular TWA y VMG ---
 if not df1.empty:
