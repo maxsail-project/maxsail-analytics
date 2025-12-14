@@ -5,7 +5,7 @@ All new features, changes, and fixes for **maxSail-analytics** will be listed he
 
 ---
 
-## [v1.2.1] - 2025-12-12
+## [v1.2.1] - 2025-12-14
 
 ### Español 🇪🇸
 
@@ -26,13 +26,18 @@ All new features, changes, and fixes for **maxSail-analytics** will be listed he
 - Corregido el comportamiento del visor al comparar tracks con distintos tiempos de inicio, evitando desalineaciones temporales.
 - Añadida dependencia faltante `haversine` para evitar errores de importación.
 
-#### Refactor y limpieza
+#### Refactor y mejoras
 
+- Refactor del selector de tramo temporal:
+  - Simplificado el selector de tramo temporal en la barra lateral.
+  - Ajustada la lógica de minutos + segundos sin modificar el comportamiento funcional.
+- Visualización de metadatos:
+  - Unificada la visualización compacta de metadatos clave (TWD, TWDShift, TWS, TWSG, NOTAS).
+  - Mejora de los mensajes de aviso relacionados con archivos de metadatos no coincidentes.
 - Eliminado gráfico redundante **COG vs COG**.
 - Reordenados los gráficos para mejorar el flujo visual y la claridad del visor.
 - Ajustes menores de texto y visualización en la Rosa de COG.
 - Simplificación del mensaje de advertencia cuando el archivo de metadatos no coincide con los tracks cargados.
-- Compactación de la visualización de metadatos clave (TWD, TWDShift, TWS, TWSG y notas).
 
 #### Documentación
 
@@ -62,11 +67,16 @@ All new features, changes, and fixes for **maxSail-analytics** will be listed he
 
 #### Refactor / Cleanup
 
+- Time segment selector refactor:
+  - Simplified the time segment selector in the sidebar.
+  - Adjusted minute + second handling without changing functional behavior.
+- Metadata visualization:
+  - Unified compact visualization of key metadata (TWD, TWDShift, TWS, TWSG, NOTES).
+  - Improved warning messages related to mismatched metadata files.
 - Removed redundant **COG vs COG** chart.
 - Reorganized chart layout to improve visual flow and clarity.
 - Minor visualization and labeling improvements in the COG Rose.
 - Simplified warning message for metadata file name mismatch.
-- More compact display of key metadata (TWD, TWDShift, TWS, TWSG and notes).
 
 #### Documentation
 
