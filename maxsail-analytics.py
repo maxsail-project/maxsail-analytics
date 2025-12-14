@@ -437,7 +437,7 @@ if meta_data.get("BALIZAS"):
             get_position='[Lon, Lat]',
             get_text='nombre',
             get_size=16,
-            get_color='[255,255,255]',
+            get_color='[0,0,0]',
             get_text_anchor='"middle"',
             get_alignment_baseline='"top"'
         )
@@ -1765,4 +1765,5 @@ with st.sidebar:
     st.markdown("---")
 
     st.markdown("**Versión:** v1.2.0-beta  \n[Changelog](https://github.com/maxsail-project/maxsail-analytics/blob/main/CHANGELOG.md)")
+
 
