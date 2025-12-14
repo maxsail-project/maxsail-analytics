@@ -160,9 +160,8 @@ if meta_data.get("ARCHIVO_TRACK"):
     try:
         archivos_subidos = [f.name for f in uploaded_files]
         if esperado and archivos_subidos and all(esperado != n for n in archivos_subidos):
-            st.sidebar.warning(
-                f"El meta-data sugiere '{esperado}', pero los archivos cargados son: {', '.join(archivos_subidos)}"
-            )
+            #st.sidebar.warning(f"El meta-data sugiere '{esperado}', pero los archivos cargados son: {', '.join(archivos_subidos)}")
+            st.sidebar.warning("Fichero de metadatos con nombre distinto a tracks")
     except Exception:
         pass
 
@@ -191,22 +190,10 @@ if df1.empty and df2.empty:
 twd = st.sidebar.number_input(
     "TWD True Wind Direction (º) estimada", min_value=0, max_value=360, value=int(meta_data.get("TWD", 0)), step=5
 )
-
+# --- Ingreso manual de minuto de salida ---
 minuto_salida = st.sidebar.number_input(
     "Minuto de salida", min_value=0, max_value=10, value=int(meta_data.get("MINUTO_SALIDA", 0)), step=1,
 )
-
-# --- Meta-data (si disponible) ---
-if meta_data:
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("**Meta-data del día**")
-    if "TWS" in meta_data: st.sidebar.write(f"TWS: {meta_data['TWS']} kn")
-    if "TWSG" in meta_data: st.sidebar.write(f"TWSG: {meta_data['TWSG']} kn")
-#    if "ARCHIVO_TRACK" in meta_data: st.sidebar.write(f"Archivo esperado: {meta_data['ARCHIVO_TRACK']}")
-#    if "NOTAS" in meta_data:
-#        st.sidebar.markdown("**Notas:**")
-#        st.sidebar.code(str(meta_data["NOTAS"]))
-
 
 # --- Calcular duración mínima ---
 if not df1.empty and not df2.empty:
@@ -233,30 +220,45 @@ sec_ini = 0
 min_fin = int(st.session_state["end_min"])
 sec_fin = 0
 
-min_ini = st.sidebar.number_input("Minuto inicial", min_value=0, max_value=int(min_duration), value=min_ini, step=1)
-min_fin = st.sidebar.number_input("Minuto final", min_value=0, max_value=int(min_duration), value=min_fin, step=1)
-sec_ini = st.sidebar.number_input("Segundo inicial", min_value=0, max_value=59, value=sec_ini, step=5)
-sec_fin = st.sidebar.number_input("Segundo final", min_value=0, max_value=59, value=sec_fin, step=5)
+st.sidebar.markdown("---")
+st.sidebar.markdown("**Tramo temporal**")
 
+# Selector de minutos (inicio / fin)
+min_ini, min_fin = st.sidebar.slider(
+    "Minutos",
+    0,
+    int(min_duration),
+    (min_ini, min_fin),
+    step=1
+)
+
+# Ajuste fino en segundos
+sec_ini = st.sidebar.number_input(
+    "Segundo inicial",
+    min_value=0,
+    max_value=59,
+    value=sec_ini,
+    step=10
+)
+
+sec_fin = st.sidebar.number_input(
+    "Segundo final",
+    min_value=0,
+    max_value=59,
+    value=sec_fin,
+    step=10
+)
+
+# Conversión a minutos decimales
 def to_minutes(mins, secs):
-    return mins + secs/60
+    return mins + secs / 60.0
 
 start_min = to_minutes(min_ini, sec_ini)
-end_min = to_minutes(min_fin, sec_fin)
-if start_min >= end_min:
-    end_min = min(start_min + 0.5, float(min_duration))
-start_min, end_min = st.sidebar.slider(
-    "Tramo seleccionado",
-    0.0, float(min_duration),
-    (start_min, end_min),
-    step=0.5
-)
+end_min   = to_minutes(min_fin, sec_fin)
 
-st.sidebar.info(
-    "El selector utiliza minutos con decimales; cada decimal representa segundos.\n"
-    "Por ejemplo: **2.50** son **2 minutos 30 segundos**."
-)
-
+# Protección contra tramo inválido
+if end_min <= start_min:
+    end_min = min(start_min + 1.0, float(min_duration))
 # --- Filtrar por tiempo ---
 def filtrar_por_tiempo(df, start_min, end_min):
     t0 = df['UTC'].iloc[0]
@@ -765,18 +767,27 @@ for label, color in zip(track_labels, track_colors):
     styled = styled.set_properties(subset=[label], **{'color': color, 'font-weight': 'bold'})
 
 st.markdown("#### Comparativa por Track")
-st.dataframe(styled, use_container_width=True)
+st.dataframe(styled, use_container_width=True) # tabla con metricas de tracks
+st.caption("* TWA y VMG calculados según el TWD")
+# --- Meta-data (si disponible) ---
+if meta_data:
+    partes = ["META DATA"]
+    if "TWD" in meta_data:
+        partes.append(f"TWD: {meta_data['TWD']}°")
+    if "TWDShift" in meta_data:
+        partes.append(f"TWD Shift to: {meta_data['TWDShift']}°")
+    if "TWS" in meta_data:
+        partes.append(f"TWS: {meta_data['TWS']} kn")
+    if "TWSG" in meta_data:
+        partes.append(f"TWSG: {meta_data['TWSG']} kn")
+    if "NOTAS" in meta_data and meta_data["NOTAS"]:
+        partes.append(f"Notas: {meta_data['NOTAS']}")
 
-# Muestra el TWD al principio de la sección de análisis
-if twd is not None:
-    st.info(f"**TWD (True Wind Direction) :**  {twd:.0f}°")
-else:
-    st.warning("No se ingresó o detectó un TWD válido.")
-
-st.caption("* TWA y VMG calculados según el TWD ingresado manualmente")
-st.divider()
+    if partes:
+        st.info(" | ".join(partes))
 
 # --- EVOLUCIÓN DE SOG ---
+st.divider()
 st.subheader("📈 Evolución de SOG (knots)")
 if not df_plot.empty:
     # --- Línea vertical en minuto de salida ---
@@ -1314,7 +1325,7 @@ if maniobra_df.empty:
 else:
     ventana_input = st.text_input(
         "Ventanas de tiempo (segundos, negativos para antes y positivos para después, separados por coma)",
-        value="-12,-8,-5,-3,-2,-1,0,1,2,3,5,8,12,20"
+        value="-8,-5,-3,-2,-1,0,1,2,3,5,8,12"
     )
     try:
         ventanas = [int(s) for s in ventana_input.replace(' ', '').split(',') if s]
@@ -1465,7 +1476,7 @@ if not maniobra_df.empty:
             hora_fin = pd.to_datetime(utc_fin).strftime("%H:%M:%S")
             tramo_rows.append({
                 "Track": track,
-                "Duración (mm:ss)": duracion_str,
+                "Duración": duracion_str,
                 "SOG prom.": f"{sog_mean:.2f}",
                 "COG prom.": f"{cog_mean:.1f}",
                 "Desvío COG": f"{cog_std:.1f}",
