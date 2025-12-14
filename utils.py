@@ -383,4 +383,30 @@ def circular_min_max_deg(series):
     span = (max_circ - min_circ) % 360.0
     return min_circ, max_circ, span
 
+def circular_modes_deg(series, bin_size=10, top_n=2):
+    """
+    Devuelve los top_n modos circulares:
+    [(angulo_central, porcentaje), ...]
+    """
+    vals = series.dropna().values % 360
+    if len(vals) == 0:
+        return []
+
+    bins = np.arange(0, 360 + bin_size, bin_size)
+    hist, edges = np.histogram(vals, bins=bins)
+
+    total = hist.sum()
+    if total == 0:
+        return []
+
+    # índices de bins más poblados
+    top_bins = np.argsort(hist)[::-1][:top_n]
+
+    modes = []
+    for i in top_bins:
+        center = (edges[i] + edges[i + 1]) / 2
+        pct = 100 * hist[i] / total
+        modes.append((center, pct))
+
+    return modes
 

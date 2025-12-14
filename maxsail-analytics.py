@@ -31,7 +31,7 @@ from utils import (
     puntos_perpendiculares_pyproj,
     calcular_twa_vmg,
     ladder_distance_rung,
-    circular_min_max_deg
+    circular_modes_deg
 )
 
 def mean_circ_signed_deg(series):
@@ -993,36 +993,47 @@ with col2:
     else:
         st.info("Selecciona un Track 2 para ver su rosa de COG.")
 
-# Arma los datos para la tabla resumen de COG
+# --- TABLA RESUMEN DE COG ---
 cog_data = {}
+
 for track_label, track_df in zip(track_labels, track_dfs):
-    if not track_df.empty and not track_df['COG'].isnull().all():
-        # min/máx circulares
-        mn, mx, span = circular_min_max_deg(track_df['COG'])
-        cog_min = f"{mn:.1f}"
-        cog_max = f"{mx:.1f}"
-        # promedio y std circulares
+
+    # --- valores por defecto SIEMPRE ---
+    m1 = m2 = diff = cog_avg = cog_std = cog_span = "-"
+
+    if not track_df.empty and "COG" in track_df and not track_df["COG"].isnull().all():
+
+        modes = circular_modes_deg(track_df["COG"], bin_size=10, top_n=2)
+
+        if len(modes) >= 1:
+            m1 = f"{modes[0][0]:.0f}° ({modes[0][1]:.0f}%)"
+
+        if len(modes) >= 2:
+            m2 = f"{modes[1][0]:.0f}° ({modes[1][1]:.0f}%)"
+            diff_val = abs((modes[0][0] - modes[1][0] + 180) % 360 - 180)
+            diff = f"{diff_val:.0f}°"
+
         cog_avg = f"{circmean(track_df['COG'].dropna(), high=360, low=0):.1f}"
         cog_std = f"{circstd(track_df['COG'].dropna(), high=360, low=0):.1f}"
-    else:
-        cog_min = cog_max = cog_avg = cog_std = "-"
 
-    cog_data[track_label] = [cog_min, cog_max, cog_avg, cog_std]
+    cog_data[track_label] = [m1, m2, diff, cog_avg, cog_std]
 
-tabla_cog = pd.DataFrame(cog_data,index=["COG Mínimo", "COG Máximo", "COG Promedio", "Dispersión (std)*"])
+tabla_cog = pd.DataFrame(
+    cog_data,
+    index=[
+        "COG dominante 1",
+        "COG dominante 2",
+        "Separación angular",
+        "COG promedio",
+        "Dispersión (std)*",
+    ],
+)
 
-# añade el rango circular (span) a la tabla
-cog_span_data = {}
-for track_label, track_df in zip(track_labels, track_dfs):
-    if not track_df.empty and not track_df['COG'].isnull().all():
-        _, _, span = circular_min_max_deg(track_df['COG'])
-        cog_span_data[track_label] = f"{span:.1f}"
-    else:
-        cog_span_data[track_label] = "-"
-tabla_cog.loc["Rango circular (°)"] = cog_span_data
 st.dataframe(tabla_cog, use_container_width=True)
+
+
 st.caption(
-        "*Si es baja → el barco mantuvo rumbo muy estable. Si es alta → hubo cambios de rumbo (maniobras, zigzags, etc)"
+        "*Si es baja → el barco mantuvo rumbo muy estable. Si es alta → hubo cambios de rumbo (maniobras, zigzags, etc)."
     )
 
 # --- EVOLUCIÓN DE SOG y COG ---
