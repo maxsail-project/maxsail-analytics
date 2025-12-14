@@ -502,7 +502,7 @@ st.pydeck_chart(
 
 # --- Filtro temporal debajo del mapa ---
 with st.container():
-    st.markdown("### Selección de tramo temporal")
+#    st.markdown("### Selección de tramo temporal")
     col_time1, col_time2, col_time3 = st.columns([3, 1, 1])
     with col_time1:
         _ = st.slider(
