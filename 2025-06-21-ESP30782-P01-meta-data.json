@@ -1,0 +1,21 @@
+{
+  "TWD": 110,
+  "TWDShift": 0,
+  "TWS": 6,
+  "TWSG": 7,
+  "MINUTO_SALIDA": 5,
+  "NOTAS": "viento estable - ola corta - configuraci\u00f3n NEUTRO",
+  "BALIZAS": [
+    {
+      "lat": 39.40691,
+      "lon": -0.315,
+      "nombre": "B1"
+    },
+    {
+      "lat": 39.40921,
+      "lon": -0.32253,
+      "nombre": "S1"
+    }
+  ],
+  "ARCHIVO_TRACK": "2025-06-21-ESP30782-P01.gpx"
+}

@@ -1,0 +1,21 @@
+{
+  "TWD": 110,
+  "TWDShift": 0,
+  "TWS": 8,
+  "TWSG": 9,
+  "MINUTO_SALIDA": 5,
+  "NOTAS": "aumenta intensidad del viento. Se mantiene eje",
+  "BALIZAS": [
+    {
+      "lat": 39.40921,
+      "lon": -0.32253,
+      "nombre": "S1"
+    },
+    {
+      "lat": 39.40615,
+      "lon": -0.3131,
+      "nombre": "B1"
+    }
+  ],
+  "ARCHIVO_TRACK": "2025-06-21-ESP30782-P02.gpx"
+}
