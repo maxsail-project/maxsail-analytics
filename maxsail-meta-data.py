@@ -25,6 +25,7 @@ meta = st.session_state.setdefault(
     "meta",
     {
         "TWD": 0,
+        "TWDShift": 0,
         "TWS": 0,
         "TWSG": 0,
         "MINUTO_SALIDA": 5,
@@ -101,6 +102,7 @@ if meta_file:
 
     # Actualizar metadatos internos (diccionario meta, ligado a session_state["meta"])
     meta["TWD"] = int(meta_loaded.get("TWD", meta.get("TWD", 0)))
+    meta["TWDShift"] = int(meta_loaded.get("TWDShift", meta.get("TWDShift", 0)))
     meta["TWS"] = int(meta_loaded.get("TWS", meta.get("TWS", 0)))
     meta["TWSG"] = int(meta_loaded.get("TWSG", meta.get("TWSG", 0)))
     meta["MINUTO_SALIDA"] = int(
@@ -157,14 +159,14 @@ with col_m1:
         format="%d",
         key="twd",
     )
-    minuto_salida = st.number_input(
-        "Minuto salida",
+    twd = st.number_input(
+        "TWDShift to (°)",
         0,
-        9999,
-        int(meta.get("MINUTO_SALIDA", 5)),
+        359,
+        int(meta.get("TWDShift", 0)),
         step=1,
         format="%d",
-        key="minuto_salida",
+        key="twdshift",
     )
 with col_m2:
     tws = st.number_input(
@@ -177,7 +179,7 @@ with col_m2:
         key="tws",
     )
     twsg = st.number_input(
-        "TWSG (rachas)",
+        "TWSG (gusts)",
         0,
         60,
         int(meta.get("TWSG", 0)),
@@ -185,6 +187,15 @@ with col_m2:
         format="%d",
         key="twsg",
     )
+minuto_salida = st.sidebar.number_input(
+    "Minuto salida",
+    0,
+    9999,
+    int(meta.get("MINUTO_SALIDA", 5)),
+    step=1,
+    format="%d",
+    key="minuto_salida",
+)
 
 # Notas personales (usar session_state como fuente de verdad)
 notas = st.sidebar.text_area("Notas personales", key="notas")
@@ -193,6 +204,7 @@ notas = st.sidebar.text_area("Notas personales", key="notas")
 meta.update(
     {
         "TWD": int(st.session_state.twd),
+        "TWDShift": int(st.session_state.twdshift),
         "TWS": int(st.session_state.tws),
         "TWSG": int(st.session_state.twsg),
         "MINUTO_SALIDA": int(st.session_state.minuto_salida),
@@ -523,11 +535,6 @@ with st.container():
         )
 
 # ---- Tabla resumen de balizas ----
-print(
-    "DEBUG balizas columnas:",
-    getattr(balizas_confirmadas_df, "columns", None),
-)
-print("DEBUG balizas shape:", getattr(balizas_confirmadas_df, "shape", None))
 if not balizas_confirmadas_df.empty:
     st.markdown("#### Balizas confirmadas")
     try:
