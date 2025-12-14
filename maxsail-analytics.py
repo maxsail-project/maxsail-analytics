@@ -186,6 +186,30 @@ if df1.empty and df2.empty:
     st.info("Selecciona al menos un track para comenzar.")
     st.stop()
 
+# --- Sincronizar tiempos entre ambos tracks ---
+if not df1.empty and not df2.empty and "UTC" in df1.columns and "UTC" in df2.columns:
+
+    # --- Sincronizar inicio ---
+    t0_sync = max(df1["UTC"].iloc[0], df2["UTC"].iloc[0])
+    df1_sync = df1[df1["UTC"] >= t0_sync].copy().reset_index(drop=True)
+    df2_sync = df2[df2["UTC"] >= t0_sync].copy().reset_index(drop=True)
+
+    if df1_sync.empty or df2_sync.empty:
+        st.warning("No hay tramo común tras sincronizar por UTC. Imposible comparar tracks.")
+        st.stop()
+    else:
+        # --- Sincronizar fin ---
+        tf_sync = min(df1_sync["UTC"].iloc[-1], df2_sync["UTC"].iloc[-1])
+        df1_sync = df1_sync[df1_sync["UTC"] <= tf_sync].copy()
+        df2_sync = df2_sync[df2_sync["UTC"] <= tf_sync].copy()
+        # --- Recalcular minutos desde t0 común ---
+        t0 = t0_sync
+        df1_sync["minutes"] = (df1_sync["UTC"] - t0).dt.total_seconds() / 60
+        df2_sync["minutes"] = (df2_sync["UTC"] - t0).dt.total_seconds() / 60
+        # --- Sustituir dataframes base ---
+        df1 = df1_sync
+        df2 = df2_sync
+
 # --- Ingreso manual de TWD ---
 twd = st.sidebar.number_input(
     "TWD True Wind Direction (º) estimada", min_value=0, max_value=360, value=int(meta_data.get("TWD", 0)), step=5
