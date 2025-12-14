@@ -10,42 +10,66 @@ All new features, changes, and fixes for **maxSail-analytics** will be listed he
 ### Español 🇪🇸
 
 #### Nuevas funcionalidades
+
 - **SOGS (velocidad suavizada):** Añadida al procesamiento en `utils.py` mediante media móvil centrada e integrada en los gráficos de velocidad para mejorar la estabilidad visual en tramos afectados por ruido GPS.
+- **Sincronización temporal por UTC entre tracks:**  
+  Al comparar dos tracks, ambos se sincronizan ahora por **hora GPS (UTC)**, recortando automáticamente los puntos fuera del tramo común.  
+  El visor trabaja sobre `df1_sync` / `df2_sync`, garantizando comparaciones coherentes incluso cuando los tracks comienzan en momentos distintos.
+- **Soporte para TWDShift (rolada / cambio de recorrido):**  
+  Añadido el campo **TWDShift** en metadatos para reflejar cambios de dirección del viento respecto al TWD inicial.
 
 #### Correcciones
+
 - Corregido el cálculo de `time_diff` y la gestión de `prev_point`, eliminando picos de velocidad falsos.
 - Eliminación de puntos duplicados exactos (lat/lon) y aplicación de un umbral mínimo de distancia para evitar distorsiones en la velocidad.
-- Correcciones en la carga de metadatos (TWD, TWS, TWSG, minuto de salida y notas).
+- Correcciones en la carga y edición de metadatos (TWD, **TWDShift**, TWS, TWSG, minuto de salida y notas).
+- Corregido el comportamiento del visor al comparar tracks con distintos tiempos de inicio, evitando desalineaciones temporales.
 - Añadida dependencia faltante `haversine` para evitar errores de importación.
 
 #### Refactor y limpieza
+
 - Eliminado gráfico redundante **COG vs COG**.
 - Reordenados los gráficos para mejorar el flujo visual y la claridad del visor.
 - Ajustes menores de texto y visualización en la Rosa de COG.
+- Simplificación del mensaje de advertencia cuando el archivo de metadatos no coincide con los tracks cargados.
+- Compactación de la visualización de metadatos clave (TWD, TWDShift, TWS, TWSG y notas).
 
 #### Documentación
+
 - Actualizado README con nueva sección **maxSail Meta Data** y mejoras en instrucciones de instalación.
-- Actualización del CHANGELOG para reflejar esta versión.
+- Actualización del CHANGELOG para reflejar esta versión y los cambios introducidos.
 
 ---
 
 ### English 🇬🇧
 
 #### New Features
+
 - **SOGS (Smoothed Speed):** Added to `utils.py` using a centered moving average and integrated into the speed charts to improve visual stability in GPS-noisy segments.
+- **UTC-based track synchronization:**  
+  When comparing two tracks, both are now synchronized by **GPS time (UTC)**, automatically trimming data outside the common time window.  
+  The viewer operates on `df1_sync` / `df2_sync`, ensuring consistent comparisons even when tracks start at different times.
+- **TWDShift support (wind shift / course change):**  
+  Added **TWDShift** metadata field to represent wind direction changes relative to the initial TWD.
 
 #### Fixes
+
 - Fixed `time_diff` calculation and `prev_point` handling, removing false speed spikes.
 - Removed exact duplicate GPX points and applied a minimum distance threshold to avoid unrealistic speed values.
-- Fixed metadata loading (TWD, TWS, TWSG, start minute and notes).
+- Fixed metadata loading and editing (TWD, **TWDShift**, TWS, TWSG, start minute and notes).
+- Fixed track comparison behavior when tracks start at different times, preventing temporal misalignment.
 - Added missing dependency `haversine` to prevent import errors.
 
 #### Refactor / Cleanup
+
 - Removed redundant **COG vs COG** chart.
 - Reorganized chart layout to improve visual flow and clarity.
 - Minor visualization and labeling improvements in the COG Rose.
+- Simplified warning message for metadata file name mismatch.
+- More compact display of key metadata (TWD, TWDShift, TWS, TWSG and notes).
 
 #### Documentation
+
 - Updated README with the new **maxSail Meta Data** section and enhanced installation notes.
 - Updated CHANGELOG with details for this release.
 
