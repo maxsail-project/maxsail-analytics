@@ -31,7 +31,8 @@ from utils import (
     puntos_perpendiculares_pyproj,
     calcular_twa_vmg,
     ladder_distance_rung,
-    circular_modes_deg
+    circular_modes_deg,
+    sog_modes
 )
 
 def mean_circ_signed_deg(series):
@@ -1097,25 +1098,143 @@ if not df2_plot.empty:
     st.altair_chart(chart_naranja, use_container_width=True)
 
 # --- HISTOGRAMA DE SOG (agrupado si hay dos tracks) ---
-st.subheader("📊 Histograma de SOG (knots)")
-if not df_plot.empty:
-    if not df1_plot.empty and not df2_plot.empty:
-        hist_sog = alt.Chart(df_plot).mark_bar(size=30, opacity=0.7).encode(
-            x=alt.X('SOG:Q', bin=alt.Bin(maxbins=25), title='SOG (knots)'),
-            y=alt.Y('count()', stack=None, title='Frecuencia'),
-            color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top')),
-            xOffset='Track:N',
-            tooltip=['count()', 'Track:N']
-        ).properties(width=900, height=250)
+bin_size = 0.5  # ancho de bin en nudos (ajústalo si quieres)
+df_hist = []
+
+for track_label, track_df in zip(track_labels, track_dfs):
+    if track_df.empty or 'SOG' not in track_df.columns:
+        continue
+
+    sog_vals = track_df['SOG'].dropna()
+    if sog_vals.empty:
+        continue
+
+    bins = np.arange(
+        sog_vals.min(),
+        sog_vals.max() + bin_size,
+        bin_size
+    )
+
+    hist, edges = np.histogram(sog_vals, bins=bins)
+    total = hist.sum()
+    if total == 0:
+        continue
+
+    for i, count in enumerate(hist):
+        if count == 0:
+            continue
+        df_hist.append({
+            "SOG_bin": (edges[i] + edges[i + 1]) / 2,
+            "Porcentaje": 100 * count / total,
+            "Track": track_label
+        })
+
+df_hist = pd.DataFrame(df_hist)
+
+st.subheader("📊 Histograma de SOG (knots) normalizado (%)")
+
+hist_sog = (alt.Chart(df_hist).mark_bar(size=30, opacity=0.7).encode(
+        x=alt.X(
+            'SOG_bin:Q',
+            title='SOG (knots)',
+            bin=alt.Bin(step=bin_size)
+        ),
+        y=alt.Y(
+            'Porcentaje:Q',
+            title='Porcentaje (%)',
+            stack=None
+        ),
+        color=alt.Color(
+            'Track:N',
+            scale=color_scale,
+            legend=alt.Legend(title="Track", orient='top')
+        ),
+        xOffset='Track:N',   # esto evita el apilado
+        tooltip=[
+            alt.Tooltip('Track:N'),
+            alt.Tooltip('Porcentaje:Q', format=".1f")
+        ]
+    )
+    .properties(width=900, height=250)
+)
+
+st.altair_chart(hist_sog, use_container_width=True)
+st.caption(
+        "Histograma normalizado: cada barra representa el porcentaje de tiempo "
+        "en cada rango de velocidad, independiente de la frecuencia de muestreo."
+    )
+
+# --- TABLA RESUMEN SOG ---
+sog_data = {}
+sog_avgs = {}  # para calcular Δ SOG entre tracks
+
+for label, df in zip(track_labels, track_dfs):
+    if not df.empty and "SOG" in df and not df["SOG"].isna().all():
+
+        # Modos de SOG
+        modes = sog_modes(df, bin_width=0.5, top_n=2)
+
+        if len(modes) >= 1:
+            m1 = f"{modes[0][0]:.1f} kn ({modes[0][1]:.0f}%)"
+        else:
+            m1 = "-"
+
+        if len(modes) >= 2:
+            m2 = f"{modes[1][0]:.1f} kn ({modes[1][1]:.0f}%)"
+        else:
+            m2 = "-"
+
+        avg_val = df["SOG"].mean()
+        avg = f"{avg_val:.2f}"
+        std = f"{df['SOG'].std():.2f}"
+
+        sog_avgs[label] = avg_val
+
     else:
-        hist_sog = alt.Chart(df_plot).mark_bar(size=25, opacity=0.7).encode(
-            x=alt.X('SOG:Q', bin=alt.Bin(maxbins=25), title='SOG (knots)'),
-            y=alt.Y('count()', stack=None, title='Frecuencia'),
-            color=alt.Color('Track:N', scale=color_scale),
-            tooltip=['count()']
-        ).properties(width=900, height=250)
-    st.altair_chart(hist_sog, use_container_width=True)
-# --- FIN HISTOGRAMA DE SOG (agrupado si hay dos tracks) ---
+        m1 = m2 = avg = std = "-"
+        sog_avgs[label] = None
+
+    sog_data[label] = [m1, m2, avg, std]
+
+# --- Δ SOG ENTRE TRACKS ---
+delta_row = {}
+
+if len(track_labels) == 2:
+    l1, l2 = track_labels
+    a1, a2 = sog_avgs[l1], sog_avgs[l2]
+
+    if a1 is not None and a2 is not None:
+        delta = a1 - a2
+        delta_row[l1] = f"{delta:+.2f} kn"
+        delta_row[l2] = f"{-delta:+.2f} kn"
+    else:
+        delta_row[l1] = delta_row[l2] = "-"
+else:
+    # Solo un track → no aplica
+    for l in track_labels:
+        delta_row[l] = "-"
+
+# --- Construir DataFrame final ---
+tabla_sog = pd.DataFrame(
+    sog_data,
+    index=[
+        "SOG dominante",
+        "SOG dominante 2",
+        "SOG promedio",
+        "Dispersión (std)",
+    ],
+)
+
+tabla_sog.loc["Δ SOG vs otro barco"] = delta_row
+
+st.dataframe(tabla_sog, use_container_width=True)
+
+st.caption(
+    "Δ SOG: diferencia de velocidad media respecto al otro barco. "
+    "Valor positivo = más rápido."
+)
+
+
 
 # --- EVOLUCIÓN DE VMG ---
 st.subheader("📈 Evolución de VMG (knots)")

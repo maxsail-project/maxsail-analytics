@@ -410,3 +410,29 @@ def circular_modes_deg(series, bin_size=10, top_n=2):
 
     return modes
 
+def sog_modes(df, bin_width=0.5, top_n=2):
+    """
+    Devuelve modos de SOG normalizados por tiempo.
+    [(centro_bin, porcentaje), ...]
+    """
+    vals = df["SOG"].dropna().values
+    if len(vals) == 0:
+        return []
+
+    bins = np.arange(vals.min(), vals.max() + bin_width, bin_width)
+    hist, edges = np.histogram(vals, bins=bins)
+
+    total = hist.sum()
+    if total == 0:
+        return []
+
+    top_bins = np.argsort(hist)[::-1][:top_n]
+
+    modes = []
+    for i in top_bins:
+        center = (edges[i] + edges[i + 1]) / 2
+        pct = 100 * hist[i] / total
+        modes.append((center, pct))
+
+    return modes
+
