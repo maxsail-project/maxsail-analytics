@@ -480,8 +480,12 @@ layers = crear_layers(
     df, df_filtro, balizas_confirmadas_df, baliza_temp_df, st.session_state.show_temp
 )
 
-lat_center = df_filtro["Lat"].mean() if not df_filtro.empty else df["Lat"].mean()
-lon_center = df_filtro["Lon"].mean() if not df_filtro.empty else df["Lon"].mean()
+if not df_filtro.empty:
+    lat_center = float(df_filtro.iloc[0]["Lat"])
+    lon_center = float(df_filtro.iloc[0]["Lon"])
+else:
+    lat_center = float(df["Lat"].mean())
+    lon_center = float(df["Lon"].mean())
 
 tooltip = {"text": "{name}"}
 
