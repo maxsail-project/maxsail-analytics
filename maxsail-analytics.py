@@ -284,6 +284,7 @@ end_min   = to_minutes(min_fin, sec_fin)
 # Protección contra tramo inválido
 if end_min <= start_min:
     end_min = min(start_min + 1.0, float(min_duration))
+
 # --- Filtrar por tiempo ---
 def filtrar_por_tiempo(df, start_min, end_min):
     t0 = df['UTC'].iloc[0]
@@ -299,7 +300,6 @@ def calcular_frecuencia(df):
     if dur_sec <= 0:
         return "-"
     return f"{len(df) / dur_sec:.2f}"
-
 
 # --- Calcular TWA y VMG ---
 if not df1.empty:
@@ -322,7 +322,48 @@ sog_avg_naranja = round(df2['SOG'].mean(), 2) if not df2.empty else 0
 st.subheader("📍 Mapa - visualización de tracks")
 layers = []
 
-# --- Track 1 (azul) ---
+def line_segments(df):
+    segments = []
+    for i in range(1, len(df)):
+        p1 = df.iloc[i - 1]
+        p2 = df.iloc[i]
+        segments.append({
+            "from": [p1["Lon"], p1["Lat"]],
+            "to":   [p2["Lon"], p2["Lat"]],
+        })
+    return segments
+
+
+# --- Track 1 completo (azul) ---
+if not df1_sync.empty:
+    layers.append(
+        pdk.Layer(
+            "LineLayer",
+            data=line_segments(df1_sync),
+            get_source_position="from",
+            get_target_position="to",
+            get_color="[0, 100, 255, 80]",  # azul, MUY transparente
+            get_width=1,
+            pickable=False,
+            name="Track 1 completo",
+        )
+    )
+
+# --- Track 2 completo (naranja) ---
+if not df2_sync.empty:
+    layers.append(
+        pdk.Layer(
+            "LineLayer",
+            data=line_segments(df2_sync),
+            get_source_position="from",
+            get_target_position="to",
+            get_color="[255, 100, 0, 80]",  # naranja, MUY transparente
+            get_width=1,
+            pickable=False,
+            name="Track 2 completo",
+        )
+    )
+
 if not df1.empty:
     line_data1 = []
     for i in range(1, len(df1)):
@@ -791,9 +832,10 @@ styled = tabla_metricas_df.style
 for label, color in zip(track_labels, track_colors):
     styled = styled.set_properties(subset=[label], **{'color': color, 'font-weight': 'bold'})
 
-st.markdown("#### Comparativa por Track")
-st.dataframe(styled, use_container_width=True) # tabla con metricas de tracks
-st.caption("* TWA y VMG calculados según el TWD")
+#st.markdown("#### Comparativa por Track")
+#st.dataframe(styled, use_container_width=True) # tabla con metricas de tracks
+#st.caption("* TWA y VMG calculados según el TWD")
+
 # --- Meta-data (si disponible) ---
 if meta_data:
     partes = ["META DATA"]
@@ -807,9 +849,110 @@ if meta_data:
         partes.append(f"TWSG: {meta_data['TWSG']} kn")
     if "NOTAS" in meta_data and meta_data["NOTAS"]:
         partes.append(f"Notas: {meta_data['NOTAS']}")
-
     if partes:
         st.info(" | ".join(partes))
+else:
+    st.info(twd is not None and f"TWD estimada: {twd}°" or "TWD no especificada.")
+
+# =========================================================
+# 🧭 TABLA RESUMEN DEFINITIVA DEL TRAMO
+# =========================================================
+
+def fmt(val, nd=2):
+    return "-" if pd.isna(val) else f"{val:.{nd}f}"
+
+def fmt_delta(val, nd=2):
+    return "" if pd.isna(val) else f" ({val:+.{nd}f})"
+
+resumen = {}
+dist_vals = {}
+eff_vals = {}
+sog_vals = {}
+cog_modes_vals = {}
+
+for label, df in zip(track_labels, track_dfs):
+
+    if df.empty:
+        resumen[label] = ["-"] * 6
+        dist_vals[label] = eff_vals[label] = sog_vals[label] = np.nan
+        cog_modes_vals[label] = ("-", "-")
+        continue
+
+    # --- Distancia recorrida (m) ---
+    dist_rec = df["Dist"].sum()
+    dist_vals[label] = dist_rec
+
+    # --- Distancia efectiva (integrando VMG) ---
+    dt = df["UTC"].diff().dt.total_seconds().fillna(0)
+    dist_eff = np.sum(np.abs(df["VMG"]) * 0.51444 * dt)
+
+    # --- Eficiencia ---
+    eff = dist_eff / dist_rec if dist_rec > 0 else np.nan
+    eff_vals[label] = eff
+
+    # --- SOG ---
+    sog_avg = df["SOG"].mean()
+    sog_vals[label] = sog_avg
+
+    # --- COG dominantes ---
+    modes = circular_modes_deg(
+        df["COG"], 
+        bin_size=10, #<<-- Ajusta el tamaño de bin si quieres más o menos resolución
+        top_n=2)
+    cog1 = f"{modes[0][0]:.0f}° ({modes[0][1]:.0f}%)" if len(modes) > 0 else "-"
+    cog2 = f"{modes[1][0]:.0f}° ({modes[1][1]:.0f}%)" if len(modes) > 1 else "-"
+    cog_modes_vals[label] = (cog1, cog2)
+
+    resumen[label] = [
+        fmt(dist_rec, 0),
+        fmt(dist_eff, 0),
+        fmt(eff, 2),
+        fmt(sog_avg, 2),
+        cog1,
+        cog2,
+    ]
+
+# --- Añadir deltas si hay dos barcos ---
+if len(track_labels) == 2:
+    l1, l2 = track_labels
+
+    resumen[l1][0] += fmt_delta(dist_vals[l1] - dist_vals[l2], 0)
+    resumen[l2][0] += fmt_delta(dist_vals[l2] - dist_vals[l1], 0)
+
+    resumen[l1][1] += fmt_delta((eff_vals[l1] - eff_vals[l2]) * dist_vals[l1], 0)
+    resumen[l2][1] += fmt_delta((eff_vals[l2] - eff_vals[l1]) * dist_vals[l2], 0)
+
+    resumen[l1][2] += fmt_delta(eff_vals[l1] - eff_vals[l2], 2)
+    resumen[l2][2] += fmt_delta(eff_vals[l2] - eff_vals[l1], 2)
+
+    resumen[l1][3] += fmt_delta(sog_vals[l1] - sog_vals[l2], 2)
+    resumen[l2][3] += fmt_delta(sog_vals[l2] - sog_vals[l1], 2)
+
+# --- Construir DataFrame final ---
+tabla_tramo = pd.DataFrame(
+    resumen,
+    index=[
+        "Distancia recorrida (m)",
+        "Distancia efectiva (m)",
+        "Eficiencia del tramo",
+        "SOG promedio (kn)",
+        "COG dominante 1",
+        "COG dominante 2",
+    ],
+)
+
+st.dataframe(tabla_tramo, use_container_width=True)
+
+st.caption(
+    "Eficiencia = distancia efectiva / distancia recorrida. "
+    "Δ positivos indican mejor rendimiento relativo. "
+    "COG dominantes muestran los rumbos más repetidos en el tramo."
+    "La distancia efectiva se calcula integrando el VMG estimado a partir del TWD. "
+    "El VMG no es una lectura directa del GPS, sino una magnitud derivada (SOG + COG + TWD). "
+    "La eficiencia refleja qué parte de la distancia navegada contribuye realmente al avance hacia el objetivo."
+    "Valores más altos indican navegación más directa. En ceñida: 0.55 – 0.75. En popa: 0.70 – 0.90"
+)
+
 
 # --- EVOLUCIÓN DE SOG ---
 st.divider()
@@ -903,10 +1046,6 @@ tabla_sog = pd.DataFrame(
 )
 
 st.dataframe(tabla_sog, use_container_width=True)
-
-
-
-
 
 # === Rosa de COG (frecuencia) – 10° por sector, colores de tracks ===
 import matplotlib.pyplot as plt
