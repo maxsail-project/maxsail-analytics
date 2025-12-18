@@ -5,7 +5,7 @@ All new features, changes, and fixes for **maxSail-analytics** will be listed he
 
 ---
 
-## [v1.2.1] - 2025-12-14
+## [v1.2.1] - 2025-12-18
 
 ### Español 🇪🇸
 
@@ -28,6 +28,11 @@ All new features, changes, and fixes for **maxSail-analytics** will be listed he
 
 #### Refactor y mejoras
 
+- Refactorizada la tabla resumen del tramo en una única vista compacta y comparativa.
+- Añadidas métricas de eficiencia basadas en distancia efectiva (calculada con VMG).
+- Incorporados deltas positivos/negativos entre barcos para facilitar la comparación directa.
+- Añadidos COG dominantes como referencia táctica del tramo.
+- Mejorada la visualización del mapa mostrando el track completo atenuado y resaltando el tramo filtrado.
 - Refactor del selector de tramo temporal:
   - Simplificado el selector de tramo temporal en la barra lateral.
   - Ajustada la lógica de minutos + segundos sin modificar el comportamiento funcional.
@@ -65,8 +70,13 @@ All new features, changes, and fixes for **maxSail-analytics** will be listed he
 - Fixed track comparison behavior when tracks start at different times, preventing temporal misalignment.
 - Added missing dependency `haversine` to prevent import errors.
 
-#### Refactor / Cleanup
+#### Refactor & Improvements
 
+- Refactored the leg summary into a single compact and comparative table.
+- Added efficiency metrics based on effective distance (computed using VMG).
+- Included positive/negative deltas between boats for direct performance comparison.
+- Added dominant COG values as tactical references for the leg.
+- Improved map visualization by displaying the full track faded and highlighting the selected segment.
 - Time segment selector refactor:
   - Simplified the time segment selector in the sidebar.
   - Adjusted minute + second handling without changing functional behavior.
