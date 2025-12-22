@@ -180,11 +180,10 @@ else:
 
 df1          = df[df['SourceFile'] == track1].copy() if track1 != "(Ninguno)" else pd.DataFrame()
 df2          = df[df['SourceFile'] == track2].copy() if track2 != "(Ninguno)" else pd.DataFrame()
-df1_original = df[df['SourceFile'] == track1].copy() if track1 != "(Ninguno)" else pd.DataFrame()
-df2_original = df[df['SourceFile'] == track2].copy() if track2 != "(Ninguno)" else pd.DataFrame()
+#df1_original = df[df['SourceFile'] == track1].copy() if track1 != "(Ninguno)" else pd.DataFrame()
+#df2_original = df[df['SourceFile'] == track2].copy() if track2 != "(Ninguno)" else pd.DataFrame()
 df1_sync     = df[df['SourceFile'] == track1].copy() if track1 != "(Ninguno)" else pd.DataFrame()
 df2_sync     = df[df['SourceFile'] == track2].copy() if track2 != "(Ninguno)" else pd.DataFrame()
-
 
 if df1.empty and df2.empty:
     st.info("Selecciona al menos un track para comenzar.")
@@ -533,8 +532,8 @@ else:
 
 # --- Cálculo punto central en el minuto_salida ---
 punto_salida = None
-if not df1_original.empty:
-    df1_temp = df1_original.copy()
+if not df1_sync.empty:
+    df1_temp = df1_sync.copy()
     df1_temp['minutes'] = (df1_temp['UTC'] - df1_temp['UTC'].iloc[0]).dt.total_seconds() / 60
     df_salida = df1_temp[np.abs(df1_temp['minutes'] - minuto_salida) < 0.10]  # tolerancia en minutos
     if not df_salida.empty:
@@ -1004,52 +1003,6 @@ tabla_sog = pd.DataFrame(
 
 st.dataframe(tabla_sog, use_container_width=True)
 
-# --- EVOLUCIÓN DE SOGS suavizado / smooth ---
-st.subheader("📈 Evolución de SOGS suavizado (knots)")
-if not df_plot.empty:
-    # --- Línea vertical en minuto de salida ---
-    linea_salida = alt.Chart(pd.DataFrame({'Tiempo_relativo_min': [0]})).mark_rule(
-        color='black',
-        strokeDash=[4, 4],
-        size=2
-    ).encode(
-        x='Tiempo_relativo_min:Q'
-    )
-
-    # --- Gráfico de SOG ---
-    chart_sog = alt.Chart(df_plot).mark_line(opacity=0.9).encode(
-        x=alt.X('UTC:T', title='Hora GPS'),
-        #x=alt.X('Tiempo_relativo_min:Q', title='Tiempo relativo a salida (min)'),
-        y=alt.Y('SOGS:Q', title='SOGS (knots)'),
-        color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top'))
-    ).properties(width=900, height=250)
-
-    # --- Combinar ---
-    st.altair_chart(chart_sog, use_container_width=True)
-
-# Arma los datos para la tabla resumen
-sog_data = {}
-track_labels = [f"{track1} (azul)", f"{track2} (naranja)"]
-track_dfs = [df1_plot, df2_plot]
-
-for track_label, track_df in zip(track_labels, track_dfs):
-    if not track_df.empty and not track_df['SOGS'].isnull().all():
-        idx_max_sog = track_df['SOGS'].idxmax()
-        idx_min_sog = track_df['SOGS'].idxmin()
-        sog_max = f"{track_df['SOGS'].max():.2f} ({track_df.loc[idx_max_sog, 'TWA']:.1f}°)"
-        sog_min = f"{track_df['SOGS'].min():.2f} ({track_df.loc[idx_min_sog, 'TWA']:.1f}°)"
-        sog_avg = f"{track_df['SOGS'].mean():.2f} ({mean_circ_signed_deg(track_df['TWA']):.1f}°)"
-    else:
-        sog_max = sog_min = sog_avg = "-"
-    sog_data[track_label] = [sog_max, sog_min, sog_avg]
-
-tabla_sog = pd.DataFrame(
-    sog_data,
-    index=["SOGS máximo knots (TWA)", "SOGS mínimo knots (TWA)", "SOGS promedio knots (TWA medio)"]
-)
-
-st.dataframe(tabla_sog, use_container_width=True)
-
 # === Rosa de COG (frecuencia) – 10° por sector, colores de tracks ===
 import matplotlib.pyplot as plt
 
@@ -1142,32 +1095,34 @@ cog_data = {}
 for track_label, track_df in zip(track_labels, track_dfs):
 
     # --- valores por defecto SIEMPRE ---
-    m1 = m2 = diff = cog_avg = cog_std = cog_span = "-"
-
+    m1 = m2 = m3 = m4 = diff = cog_std = "-"
     if not track_df.empty and "COG" in track_df and not track_df["COG"].isnull().all():
 
-        modes = circular_modes_deg(track_df["COG"], bin_size=10, top_n=2)
+        modes = circular_modes_deg(track_df["COG"], bin_size=10, top_n=4)
 
         if len(modes) >= 1:
             m1 = f"{modes[0][0]:.0f}° ({modes[0][1]:.0f}%)"
-
         if len(modes) >= 2:
             m2 = f"{modes[1][0]:.0f}° ({modes[1][1]:.0f}%)"
             diff_val = abs((modes[0][0] - modes[1][0] + 180) % 360 - 180)
             diff = f"{diff_val:.0f}°"
+        if len(modes) >= 3:
+            m3 = f"{modes[2][0]:.0f}° ({modes[2][1]:.0f}%)"
+        if len(modes) >= 4:
+            m4 = f"{modes[3][0]:.0f}° ({modes[3][1]:.0f}%)"
 
-        cog_avg = f"{circmean(track_df['COG'].dropna(), high=360, low=0):.1f}"
         cog_std = f"{circstd(track_df['COG'].dropna(), high=360, low=0):.1f}"
 
-    cog_data[track_label] = [m1, m2, diff, cog_avg, cog_std]
+    cog_data[track_label] = [m1, m2, m3, m4, diff, cog_std]
 
 tabla_cog = pd.DataFrame(
     cog_data,
     index=[
         "COG dominante 1",
         "COG dominante 2",
+        "COG dominante 3",
+        "COG dominante 4",
         "Separación angular",
-        "COG promedio",
         "Dispersión (std)*",
     ],
 )
@@ -1376,7 +1331,51 @@ st.caption(
     "Valor positivo = más rápido."
 )
 
+# --- EVOLUCIÓN DE SOGS suavizado / smooth ---
+st.subheader("📈 Evolución de SOGS suavizado (knots)")
+if not df_plot.empty:
+    # --- Línea vertical en minuto de salida ---
+    linea_salida = alt.Chart(pd.DataFrame({'Tiempo_relativo_min': [0]})).mark_rule(
+        color='black',
+        strokeDash=[4, 4],
+        size=2
+    ).encode(
+        x='Tiempo_relativo_min:Q'
+    )
 
+    # --- Gráfico de SOG ---
+    chart_sog = alt.Chart(df_plot).mark_line(opacity=0.9).encode(
+        x=alt.X('UTC:T', title='Hora GPS'),
+        #x=alt.X('Tiempo_relativo_min:Q', title='Tiempo relativo a salida (min)'),
+        y=alt.Y('SOGS:Q', title='SOGS (knots)'),
+        color=alt.Color('Track:N', scale=color_scale, legend=alt.Legend(title="Track", orient='top'))
+    ).properties(width=900, height=250)
+
+    # --- Combinar ---
+    st.altair_chart(chart_sog, use_container_width=True)
+
+# Arma los datos para la tabla resumen
+sog_data = {}
+track_labels = [f"{track1} (azul)", f"{track2} (naranja)"]
+track_dfs = [df1_plot, df2_plot]
+
+for track_label, track_df in zip(track_labels, track_dfs):
+    if not track_df.empty and not track_df['SOGS'].isnull().all():
+        idx_max_sog = track_df['SOGS'].idxmax()
+        idx_min_sog = track_df['SOGS'].idxmin()
+        sog_max = f"{track_df['SOGS'].max():.2f} ({track_df.loc[idx_max_sog, 'TWA']:.1f}°)"
+        sog_min = f"{track_df['SOGS'].min():.2f} ({track_df.loc[idx_min_sog, 'TWA']:.1f}°)"
+        sog_avg = f"{track_df['SOGS'].mean():.2f} ({mean_circ_signed_deg(track_df['TWA']):.1f}°)"
+    else:
+        sog_max = sog_min = sog_avg = "-"
+    sog_data[track_label] = [sog_max, sog_min, sog_avg]
+
+tabla_sog = pd.DataFrame(
+    sog_data,
+    index=["SOGS máximo knots (TWA)", "SOGS mínimo knots (TWA)", "SOGS promedio knots (TWA medio)"]
+)
+
+st.dataframe(tabla_sog, use_container_width=True)
 
 # --- EVOLUCIÓN DE VMG ---
 st.subheader("📈 Evolución de VMG (knots)")
