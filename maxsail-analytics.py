@@ -187,6 +187,10 @@ if df1.empty and df2.empty:
     st.info("Selecciona al menos un track para comenzar.")
     st.stop()
 
+# Inicializa df1_sync y df2_sync como vacíos por defecto
+df1_sync = pd.DataFrame()
+df2_sync = pd.DataFrame()
+
 # --- Sincronizar tiempos entre ambos tracks ---
 if not df1.empty and not df2.empty and "UTC" in df1.columns and "UTC" in df2.columns:
 
