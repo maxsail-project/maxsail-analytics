@@ -178,18 +178,17 @@ else:
     track1 = track2 = "Track único"
     df["SourceFile"] = "Track único"
 
-df1 = df[df['SourceFile'] == track1].copy() if track1 != "(Ninguno)" else pd.DataFrame()
-df2 = df[df['SourceFile'] == track2].copy() if track2 != "(Ninguno)" else pd.DataFrame()
+df1          = df[df['SourceFile'] == track1].copy() if track1 != "(Ninguno)" else pd.DataFrame()
+df2          = df[df['SourceFile'] == track2].copy() if track2 != "(Ninguno)" else pd.DataFrame()
 df1_original = df[df['SourceFile'] == track1].copy() if track1 != "(Ninguno)" else pd.DataFrame()
 df2_original = df[df['SourceFile'] == track2].copy() if track2 != "(Ninguno)" else pd.DataFrame()
+df1_sync     = df[df['SourceFile'] == track1].copy() if track1 != "(Ninguno)" else pd.DataFrame()
+df2_sync     = df[df['SourceFile'] == track2].copy() if track2 != "(Ninguno)" else pd.DataFrame()
+
 
 if df1.empty and df2.empty:
     st.info("Selecciona al menos un track para comenzar.")
     st.stop()
-
-# Inicializa df1_sync y df2_sync como vacíos por defecto
-df1_sync = pd.DataFrame()
-df2_sync = pd.DataFrame()
 
 # --- Sincronizar tiempos entre ambos tracks ---
 if not df1.empty and not df2.empty and "UTC" in df1.columns and "UTC" in df2.columns:
