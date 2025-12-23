@@ -46,6 +46,19 @@ st.session_state.setdefault("baliza_temp", {})
 st.session_state.setdefault("show_temp", False)
 st.session_state.setdefault("baliza_locked", False)
 
+# Tramos confirmados
+st.session_state.setdefault("tramos", [])
+
+# Tramo temporal
+st.session_state.setdefault("tramo_temp", {})
+
+# Flags de vista previa y bloqueo de autoupdate (tramos)
+st.session_state.setdefault("show_tramo_temp", False)
+st.session_state.setdefault("tramo_locked", False)
+
+# Flag de importación de metadatos
+st.session_state.setdefault("meta_imported", False)
+
 # =========================
 # 1) CARGA DE ARCHIVO GPX
 # =========================
@@ -97,10 +110,10 @@ meta_file = st.sidebar.file_uploader(
     key="meta_file",
 )
 
-if meta_file:
+if meta_file and not st.session_state.meta_imported:
     meta_loaded = json.load(meta_file)
 
-    # Actualizar metadatos internos (diccionario meta, ligado a session_state["meta"])
+    # Actualizar metadatos internos
     meta["TWD"] = int(meta_loaded.get("TWD", meta.get("TWD", 0)))
     meta["TWDShift"] = int(meta_loaded.get("TWDShift", meta.get("TWDShift", 0)))
     meta["TWS"] = int(meta_loaded.get("TWS", meta.get("TWS", 0)))
@@ -110,11 +123,24 @@ if meta_file:
     )
     meta["NOTAS"] = meta_loaded.get("NOTAS", meta.get("NOTAS", ""))
 
-    # Actualizar estado de notas y balizas
+    # Actualizar estado persistente
     st.session_state["notas"] = meta["NOTAS"]
     st.session_state["balizas"] = meta_loaded.get("BALIZAS", [])
+    st.session_state["tramos"] = meta_loaded.get("TRAMOS", [])
 
+    # Reset de estado temporal SOLO UNA VEZ
+    st.session_state.baliza_temp = {}
+    st.session_state.tramo_temp = {}
+    st.session_state.pop("last_filter_sig", None)
+
+    st.session_state.meta_imported = True
     st.success("Metadatos importados correctamente.")
+
+if st.sidebar.button("🔄 Reimportar metadatos"):
+    st.session_state.meta_imported = False
+    st.sidebar.success("Metadatos listos para reimportar.")
+    st.rerun()
+
 
 # =========================================================
 # 3) PREINICIALIZAR FILTRO Y CALCULAR df_filtro (ANTES LATERAL)
@@ -213,7 +239,7 @@ meta.update(
 )
 
 # ============================
-# 5) GESTIÓN DE BALIZAS
+# 5a) GESTIÓN DE BALIZAS
 # ============================
 st.sidebar.markdown("### Balizas")
 
@@ -294,13 +320,15 @@ st.session_state.baliza_temp["nombre"] = st.session_state.nombre_b_new
 
 # Botones
 col_boton = st.sidebar.columns(3)
-if col_boton[0].button("Agregar"):
+if col_boton[0].button("Agregar", key="baliza_add"):
     st.session_state.balizas.append(st.session_state.baliza_temp.copy())
     st.success(f"Baliza '{st.session_state.baliza_temp['nombre']}' agregada.")
     st.session_state.baliza_temp = reset_baliza_temp()
-if col_boton[1].button("Limpiar"):
+
+if col_boton[1].button("Limpiar", key="baliza_clear"):
     st.session_state.balizas = []
-if col_boton[2].button("Vista previa"):
+
+if col_boton[2].button("Vista previa", key="baliza_preview"):
     st.session_state.show_temp = not st.session_state.show_temp
 
 # Edición de tabla de balizas
@@ -317,32 +345,116 @@ if not balizas_edit_df.empty:
     st.session_state.balizas = edit_df.to_dict(orient="records")
 
 # ============================
+# 5b) GESTIÓN DE TRAMOS
+# ============================
+st.sidebar.markdown("### Tramos de análisis")
+
+
+def reset_tramo_temp() -> dict:
+    return {
+        "nombre": f"Tramo {len(st.session_state['tramos']) + 1}",
+        "tipo": "Ceñida",
+        "utc_ini": utc_ini.isoformat(),
+        "utc_fin": utc_fin.isoformat(),
+        "min_ini": int(st.session_state.slider_rango[0]),
+        "seg_ini": int(st.session_state.seg_ini),
+        "min_fin": int(st.session_state.slider_rango[1]),
+        "seg_fin": int(st.session_state.seg_fin),
+        "notas": "",
+    }
+
+
+if "tramo_temp" not in st.session_state or not st.session_state.tramo_temp:
+    st.session_state.tramo_temp = reset_tramo_temp()
+if "show_tramo_temp" not in st.session_state:
+    st.session_state.show_tramo_temp = False
+if "tramo_locked" not in st.session_state:
+    st.session_state.tramo_locked = False
+
+# ---- AUTO-SYNC de tramo con el filtro temporal ----
+st.sidebar.checkbox("Bloquear autoupdate de tramo", key="tramo_locked")
+
+if current_sig != st.session_state.last_filter_sig and not st.session_state.tramo_locked:
+    st.session_state.tramo_temp["utc_ini"] = utc_ini.isoformat()
+    st.session_state.tramo_temp["utc_fin"] = utc_fin.isoformat()
+    st.session_state.tramo_temp["min_ini"] = int(st.session_state.slider_rango[0])
+    st.session_state.tramo_temp["seg_ini"] = int(st.session_state.seg_ini)
+    st.session_state.tramo_temp["min_fin"] = int(st.session_state.slider_rango[1])
+    st.session_state.tramo_temp["seg_fin"] = int(st.session_state.seg_fin)
+
+# ---- Edición de tramo temporal ----
+st.session_state.tramo_temp["nombre"] = st.sidebar.text_input(
+    "Nombre del tramo",
+    value=st.session_state.tramo_temp["nombre"],
+)
+
+st.session_state.tramo_temp["tipo"] = st.sidebar.selectbox(
+    "Tipo de tramo",
+    ["Ceñida", "Popa", "Reach", "Salida", "Otro"],
+    index=["Ceñida", "Popa", "Reach", "Salida", "Otro"].index(
+        st.session_state.tramo_temp.get("tipo", "Ceñida")
+    ),
+)
+
+# ---- Botones ----
+col_t = st.sidebar.columns(3)
+if col_t[0].button("Agregar tramo", key="tramo_add"):
+    st.session_state.tramos.append(st.session_state.tramo_temp.copy())
+    st.success(f"Tramo '{st.session_state.tramo_temp['nombre']}' agregado.")
+    st.session_state.tramo_temp = reset_tramo_temp()
+
+if col_t[1].button("Limpiar tramos", key="tramo_clear"):
+    st.session_state.tramos = []
+
+if col_t[2].button("Vista previa", key="tramo_preview"):
+    st.session_state.show_tramo_temp = not st.session_state.show_tramo_temp
+
+# ---- Edición de tabla de tramos ----
+tramos_edit_df = (
+    pd.DataFrame(st.session_state.tramos)
+    if st.session_state.tramos
+    else pd.DataFrame(
+        columns=[
+            "nombre",
+            "tipo",
+            "utc_ini",
+            "utc_fin",
+            "min_ini",
+            "seg_ini",
+            "min_fin",
+            "seg_fin",
+            "notas",
+        ]
+    )
+)
+
+if not tramos_edit_df.empty:
+    st.sidebar.caption("✏️ Edita tramos en la tabla:")
+    edit_df = st.sidebar.data_editor(
+        tramos_edit_df,
+        use_container_width=True,
+        num_rows="dynamic",
+        key="edit_tramos",
+    )
+    st.session_state.tramos = edit_df.to_dict(orient="records")
+
+# ============================
 # 6) EXPORTAR METADATOS
 # ============================
 st.sidebar.markdown("### Exportar metadatos")
 meta_export = {
     **meta,
     "BALIZAS": st.session_state.balizas,
+    "TRAMOS": st.session_state.tramos,
     "ARCHIVO_TRACK": gpx_file.name,
 }
+
 st.sidebar.download_button(
     f"Descargar {nombre_metadata}",
     data=json.dumps(meta_export, indent=2),
     file_name=nombre_metadata,
     mime="application/json",
 )
-
-# ============================
-# 7) AYUDA / CONTACTO
-# ============================
-with st.sidebar.expander("🛈 Ayuda / contacto"):
-    st.caption(
-        """
-- Agrega balizas y edita metadatos para tu track GPX.
-- Puedes importar y exportar metadatos en JSON para reutilizarlos.
-- maxSail tools · contacto@maxsail.com · ©2025
-"""
-    )
 
 # ======================================
 # PANEL PRINCIPAL (MAPA ➜ FILTRO ➜ TABLA)
@@ -538,16 +650,71 @@ with st.container():
             key="seg_fin",
         )
 
-# ---- Tabla resumen de balizas ----
+# ======================================
+# TABLAS RESUMEN BAJO EL MAPA
+# ======================================
+
+st.markdown("### 📋 Resumen de elementos definidos")
+
+# ---------- BALIZAS ----------
 if not balizas_confirmadas_df.empty:
-    st.markdown("#### Balizas confirmadas")
+    st.markdown("#### 📍 Balizas confirmadas")
+
+    balizas_view = balizas_confirmadas_df.copy()
     try:
-        balizas_confirmadas_df["lat_str"] = balizas_confirmadas_df["lat"].map(
-            lambda x: f"{x:.5f}"
-        )
-        balizas_confirmadas_df["lon_str"] = balizas_confirmadas_df["lon"].map(
-            lambda x: f"{x:.5f}"
-        )
+        balizas_view["Lat"] = balizas_view["lat"].map(lambda x: f"{x:.5f}")
+        balizas_view["Lon"] = balizas_view["lon"].map(lambda x: f"{x:.5f}")
     except Exception as e:
-        print("DEBUG error creando lat_str/lon_str:", e)
-    st.dataframe(balizas_confirmadas_df, use_container_width=True)
+        print("DEBUG error creando columnas Lat/Lon:", e)
+
+    st.dataframe(
+        balizas_view[["nombre", "Lat", "Lon"]],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+# ---------- TRAMOS ----------
+if st.session_state.tramos:
+    st.markdown("#### ⏱️ Tramos de análisis")
+
+    tramos_view = pd.DataFrame(st.session_state.tramos).copy()
+
+    st.dataframe(
+        tramos_view[["nombre", "tipo", "utc_ini", "utc_fin"]],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+# ---------- EMPTY STATE ----------
+if balizas_confirmadas_df.empty and not st.session_state.tramos:
+    st.info("No hay balizas ni tramos definidos todavía.")
+
+# ============================
+# 7) PROYECTO ABIERTO Y DESCARGO DE RESPONSABILIDAD
+# ============================
+st.markdown("""
+---
+#### 📢 Proyecto abierto y descargo de responsabilidad
+            
+Este editor de metadatos de regatas forma parte del ecosistema **maxSail-Project**. Es un proyecto **abierto y experimental**, orientado a la preparación, análisis y reutilización de información asociada a tracks / GPX.
+Permite definir y editar **balizas, tramos y metadatos** para su posterior uso en herramientas de análisis como *maxSail-Analytics*.
+
+**Creador / Author:**  
+- Maximiliano Mannise  
+- [maxsail.project@gmail.com](mailto:maxsail.project@gmail.com)  
+- [GitHub: maxsail-project](https://github.com/maxsail-project)  
+
+**Aviso legal / Disclaimer:**  
+La información visualizada y los análisis generados por esta herramienta son orientativos y no deben ser considerados como asesoramiento profesional ni como datos oficiales de regatas. El creador no asume ninguna responsabilidad por el uso, interpretación o decisiones tomadas a partir de la información mostrada.
+
+El código es de uso libre y puede ser compartido, modificado y distribuido bajo los términos de la licencia MIT.  
+¡Cualquier mejora, comentario o contribución es bienvenida!
+""")
+
+with st.sidebar:
+    st.markdown("""
+    **maxSail-meta-data**
+    - Autor: Maximiliano Mannise
+    - [maxsail.project@gmail.com](mailto:maxsail.project@gmail.com)
+    - [GitHub: maxsail-project](https://github.com/maxsail-project)
+    """)
