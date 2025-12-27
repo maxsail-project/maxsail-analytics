@@ -374,13 +374,24 @@ if "tramo_locked" not in st.session_state:
 # ---- AUTO-SYNC de tramo con el filtro temporal ----
 st.sidebar.checkbox("Bloquear autoupdate de tramo", key="tramo_locked")
 
-if current_sig != st.session_state.last_filter_sig and not st.session_state.tramo_locked:
+# firma independiente para tramos (NO compartir last_filter_sig con balizas)
+current_tramo_sig = (
+    tuple(st.session_state.slider_rango),
+    int(st.session_state.seg_ini),
+    int(st.session_state.seg_fin),
+)
+
+if "last_tramo_sig" not in st.session_state:
+    st.session_state.last_tramo_sig = current_tramo_sig
+
+if current_tramo_sig != st.session_state.last_tramo_sig and not st.session_state.tramo_locked:
     st.session_state.tramo_temp["utc_ini"] = utc_ini.isoformat()
     st.session_state.tramo_temp["utc_fin"] = utc_fin.isoformat()
     st.session_state.tramo_temp["min_ini"] = int(st.session_state.slider_rango[0])
     st.session_state.tramo_temp["seg_ini"] = int(st.session_state.seg_ini)
     st.session_state.tramo_temp["min_fin"] = int(st.session_state.slider_rango[1])
     st.session_state.tramo_temp["seg_fin"] = int(st.session_state.seg_fin)
+    st.session_state.last_tramo_sig = current_tramo_sig
 
 # ---- Edición de tramo temporal ----
 st.session_state.tramo_temp["nombre"] = st.sidebar.text_input(
