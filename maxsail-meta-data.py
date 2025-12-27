@@ -679,11 +679,25 @@ if st.session_state.tramos:
 
     tramos_view = pd.DataFrame(st.session_state.tramos).copy()
 
+    # Formato mm:ss para inicio y fin
+    tramos_view["inicio (mm:ss)"] = tramos_view.apply(
+        lambda r: f"{int(r['min_ini']):02d}:{int(r['seg_ini']):02d}",
+        axis=1
+    )
+
+    tramos_view["fin (mm:ss)"] = tramos_view.apply(
+        lambda r: f"{int(r['min_fin']):02d}:{int(r['seg_fin']):02d}",
+        axis=1
+    )
+
     st.dataframe(
-        tramos_view[["nombre", "tipo", "utc_ini", "utc_fin"]],
+        tramos_view[
+            ["nombre", "tipo", "inicio (mm:ss)", "fin (mm:ss)", "utc_ini", "utc_fin"]
+        ],
         use_container_width=True,
         hide_index=True,
     )
+
 
 # ---------- EMPTY STATE ----------
 if balizas_confirmadas_df.empty and not st.session_state.tramos:
