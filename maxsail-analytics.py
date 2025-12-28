@@ -77,6 +77,8 @@ if meta_file is not None:
     except Exception as e:
         st.sidebar.error(f"Error leyendo meta-data JSON: {e}")
 
+tramos_meta = meta_data.get("TRAMOS", [])
+
 if not uploaded_files:
     st.info("Sube al menos un archivo GPX o CSV para comenzar.")
     st.markdown("""
@@ -236,45 +238,95 @@ else:
 
 min_duration = int(min_duration)
 
-if "last_track1" not in st.session_state or st.session_state["last_track1"] != track1 or st.session_state["last_track2"] != track2:
-    st.session_state["start_min"] = 0.0
-    st.session_state["end_min"] = float(min_duration)
-    st.session_state["last_track1"] = track1
-    st.session_state["last_track2"] = track2
-
-min_ini = int(st.session_state["start_min"])
-sec_ini = 0
-min_fin = int(st.session_state["end_min"])
-sec_fin = 0
-
 st.sidebar.markdown("---")
 st.sidebar.markdown("**Tramo temporal**")
 
-# Selector de minutos (inicio / fin)
-min_ini, min_fin = st.sidebar.slider(
-    "Minutos",
-    0,
-    int(min_duration),
-    (min_ini, min_fin),
-    step=1
+# Construyo etiquetas y un índice real (0..n-1)
+labels_tramos = []
+for t in tramos_meta:
+    nombre = str(t.get("nombre", "")).strip()
+    tipo = str(t.get("tipo", "")).strip()
+    labels_tramos.append(f"{nombre} ({tipo})" if tipo else nombre)
+
+# Selectbox devuelve el índice del tramo o None (Manual)
+tramo_idx = st.sidebar.selectbox(
+    "Tramo (meta-data)",
+    options=[None] + list(range(len(tramos_meta))),
+    format_func=lambda i: "Manual" if i is None else labels_tramos[i],
+    key="tramo_idx_meta_v2"
 )
 
-# Ajuste fino en segundos
-sec_ini = st.sidebar.number_input(
-    "Segundo inicial",
-    min_value=0,
-    max_value=59,
-    value=sec_ini,
-    step=10
-)
+def tramo_utc_to_rel(tramo, df):
+    # UTC del tramo (tz-aware)
+    utc_ini = pd.to_datetime(tramo["utc_ini"], utc=True)
+    utc_fin = pd.to_datetime(tramo["utc_fin"], utc=True)
 
-sec_fin = st.sidebar.number_input(
-    "Segundo final",
-    min_value=0,
-    max_value=59,
-    value=sec_fin,
-    step=10
-)
+    # t0 del visor (forzado a UTC tz-aware)
+    t0 = pd.to_datetime(df["UTC"].iloc[0], utc=True)
+
+    d_ini = (utc_ini - t0).total_seconds()
+    d_fin = (utc_fin - t0).total_seconds()
+
+    # Protección por si el tramo empieza antes del track
+    d_ini = max(0, d_ini)
+    d_fin = max(0, d_fin)
+
+    return (
+        int(d_ini // 60),
+        int(d_ini % 60),
+        int(d_fin // 60),
+        int(d_fin % 60),
+    )
+
+# --- Resolver tramo ---
+if tramo_idx is not None:
+    tramo = tramos_meta[tramo_idx]
+
+    #min_ini, sec_ini, min_fin, sec_fin = tramo_utc_to_rel(tramo, df1 if not df1.empty else df2)
+    df_ref = df1 if not df1.empty else df2 if not df2.empty else None
+
+    if df_ref is not None:
+        min_ini, sec_ini, min_fin, sec_fin = tramo_utc_to_rel(tramo, df_ref)
+    else:
+        min_ini = sec_ini = min_fin = sec_fin = 0
+
+    gpx_ref = meta_data.get("ARCHIVO_TRACK", "").strip()
+
+    caption = (
+        f"⏱ {min_ini:02d}:{sec_ini:02d} → {min_fin:02d}:{sec_fin:02d}"
+    )
+
+    if gpx_ref:
+        caption += f"\n📁 GPX: {gpx_ref}"
+
+    st.sidebar.caption(caption)
+
+else:
+    # --- Modo manual ---
+    min_ini, min_fin = st.sidebar.slider(
+        "Minutos",
+        0,
+        int(min_duration),
+        (0, int(min_duration)),
+        step=1,
+        key="min_slider_manual"
+    )
+    sec_ini = st.sidebar.number_input(
+        "Segundo inicial",
+        min_value=0,
+        max_value=59,
+        value=0,
+        step=10,
+        key="sec_ini_manual"
+    )
+    sec_fin = st.sidebar.number_input(
+        "Segundo final",
+        min_value=0,
+        max_value=59,
+        value=0,
+        step=10,
+        key="sec_fin_manual"
+    )
 
 # Conversión a minutos decimales
 def to_minutes(mins, secs):
