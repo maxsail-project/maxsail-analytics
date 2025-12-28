@@ -11,6 +11,14 @@ All new features, changes, and fixes for **maxSail-analytics** will be listed he
 
 #### Nuevas funcionalidades
 
+- **Selector de tramos desde meta-data JSON:**  
+  Añadido un selector de tramos que permite aplicar directamente segmentos definidos en el archivo de meta-data (ceñidas, popas, reaches, etc.) desde la interfaz del visor.
+- **UTC como fuente de verdad para los tramos:**  
+  Los tramos se interpretan usando `utc_ini` / `utc_fin` como referencia temporal principal, traduciéndose dinámicamente a la ventana de tiempo relativa del visor.
+- **Compatibilidad con GPX sincronizados:**  
+  La selección de tramos funciona correctamente al comparar tracks con distintos tiempos de inicio o cuando solo se carga uno de los tracks.
+- **Mejora de trazabilidad y contexto:**  
+  Se muestra el nombre del archivo GPX de referencia definido en el meta-data para evitar confusiones al trabajar con múltiples tracks o sesiones.
 - **SOGS (velocidad suavizada):** Añadida al procesamiento en `utils.py` mediante media móvil centrada e integrada en los gráficos de velocidad para mejorar la estabilidad visual en tramos afectados por ruido GPS.
 - **Sincronización temporal por UTC entre tracks:**  
   Al comparar dos tracks, ambos se sincronizan ahora por **hora GPS (UTC)**, recortando automáticamente los puntos fuera del tramo común.  
@@ -55,6 +63,14 @@ All new features, changes, and fixes for **maxSail-analytics** will be listed he
 
 #### New Features
 
+- **Segment selector from JSON meta-data:**  
+  Added a segment selector that allows predefined analysis segments (upwind, downwind, reach, etc.) defined in the meta-data file to be applied directly in the viewer.
+- **UTC as the single source of truth for segments:**  
+  Segments are interpreted using `utc_ini` / `utc_fin` as the primary time reference and dynamically translated into a relative time window for visualization.
+- **Compatibility with synchronized GPX tracks:**  
+  Segment selection works correctly when comparing tracks with different start times or when only one track is loaded.
+- **Improved traceability and context:**  
+  The GPX file name associated with the segment (from meta-data) is displayed to avoid confusion when working with multiple tracks or sessions.
 - **SOGS (Smoothed Speed):** Added to `utils.py` using a centered moving average and integrated into the speed charts to improve visual stability in GPS-noisy segments.
 - **UTC-based track synchronization:**  
   When comparing two tracks, both are now synchronized by **GPS time (UTC)**, automatically trimming data outside the common time window.  
