@@ -104,26 +104,28 @@ st.sidebar.markdown("### Importar metadatos")
 
 nombre_base = os.path.splitext(gpx_file.name)[0]
 nombre_metadata = f"{nombre_base}-meta-data.json"
+
 meta_file = st.sidebar.file_uploader(
     f"Archivo metadatos previo ({nombre_metadata})",
     type=["json"],
     key="meta_file",
 )
 
+# Detectar cambio de archivo para permitir reimportación automática
+current_meta_name = meta_file.name if meta_file else None
+if st.session_state.get("last_meta_name") != current_meta_name:
+    st.session_state.last_meta_name = current_meta_name
+    st.session_state.meta_imported = False
+
 if meta_file and not st.session_state.meta_imported:
     try:
-        meta_file.seek(0)  # recomendado en cloud/streamlit
-    except Exception:
-        pass
+        meta_file.seek(0)
+        meta_loaded = json.load(meta_file)
+    except Exception as e:
+        st.sidebar.error(f"Error leyendo meta-data: {e}")
+        meta_loaded = {}
 
-    meta_loaded = json.load(meta_file)
-
-    st.sidebar.markdown("### DEBUG META CLOUD")
-    st.sidebar.write("meta dict:", st.session_state.meta)
-    for k in ["meta_TWD", "meta_TWDShift", "meta_TWS", "meta_TWSG", "meta_MINUTO_SALIDA"]:
-        st.sidebar.write(k, "=", st.session_state.get(k, "<no existe>"))
-
-    # Forzar estado de widgets (Cloud-safe)
+    # --- Forzar estado de widgets (Cloud-safe) ---
     if "TWD" in meta_loaded:
         st.session_state["meta_TWD"] = float(meta_loaded["TWD"])
     if "TWDShift" in meta_loaded:
@@ -135,18 +137,18 @@ if meta_file and not st.session_state.meta_imported:
     if "MINUTO_SALIDA" in meta_loaded:
         st.session_state["meta_MINUTO_SALIDA"] = int(meta_loaded["MINUTO_SALIDA"])
 
-    # Actualizar estado persistente
-    st.session_state["notas"] = meta["NOTAS"]
+    # --- Estado persistente NO escalar ---
+    st.session_state["notas"] = meta_loaded.get("NOTAS", "")
     st.session_state["balizas"] = meta_loaded.get("BALIZAS", [])
     st.session_state["tramos"] = meta_loaded.get("TRAMOS", [])
 
-    # Reset de estado temporal SOLO UNA VEZ
+    # --- Reset de temporales ---
     st.session_state.baliza_temp = {}
     st.session_state.tramo_temp = {}
     st.session_state.pop("last_filter_sig", None)
 
     st.session_state.meta_imported = True
-    st.success("Metadatos importados correctamente.")
+    st.sidebar.success("Metadatos importados correctamente.")
 
 if st.sidebar.button("🔄 Reimportar metadatos"):
     st.session_state.meta_imported = False
@@ -234,6 +236,22 @@ minuto_salida = st.sidebar.number_input(
     format="%d",
     key="minuto_salida",
 )
+
+# ========================================
+# SINCRONIZAR META DESDE WIDGETS (FUENTE REAL)
+# ========================================
+st.session_state.meta.update({
+    "TWD": st.session_state.get("meta_TWD", st.session_state.meta["TWD"]),
+    "TWDShift": st.session_state.get("meta_TWDShift", st.session_state.meta["TWDShift"]),
+    "TWS": st.session_state.get("meta_TWS", st.session_state.meta["TWS"]),
+    "TWSG": st.session_state.get("meta_TWSG", st.session_state.meta["TWSG"]),
+    "MINUTO_SALIDA": st.session_state.get(
+        "meta_MINUTO_SALIDA",
+        st.session_state.meta["MINUTO_SALIDA"]
+    ),
+    "NOTAS": st.session_state.get("notas", st.session_state.meta["NOTAS"]),
+})
+
 
 # Notas personales (usar session_state como fuente de verdad)
 notas = st.sidebar.text_area("Notas personales", key="notas")
