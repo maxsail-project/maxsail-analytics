@@ -127,16 +127,15 @@ if meta_file and not st.session_state.meta_imported:
 
     # --- Forzar estado de widgets (Cloud-safe) ---
     if "TWD" in meta_loaded:
-        st.session_state["meta_TWD"] = float(meta_loaded["TWD"])
+        st.session_state["twd"] = int(meta_loaded["TWD"])
     if "TWDShift" in meta_loaded:
-        st.session_state["meta_TWDShift"] = float(meta_loaded["TWDShift"])
+        st.session_state["twdshift"] = int(meta_loaded["TWDShift"])
     if "TWS" in meta_loaded:
-        st.session_state["meta_TWS"] = float(meta_loaded["TWS"])
+        st.session_state["tws"] = int(meta_loaded["TWS"])
     if "TWSG" in meta_loaded:
-        st.session_state["meta_TWSG"] = float(meta_loaded["TWSG"])
+        st.session_state["twsg"] = int(meta_loaded["TWSG"])
     if "MINUTO_SALIDA" in meta_loaded:
-        st.session_state["meta_MINUTO_SALIDA"] = int(meta_loaded["MINUTO_SALIDA"])
-
+        st.session_state["minuto_salida"] = int(meta_loaded["MINUTO_SALIDA"])
     # --- Estado persistente NO escalar ---
     st.session_state["notas"] = meta_loaded.get("NOTAS", "")
     st.session_state["balizas"] = meta_loaded.get("BALIZAS", [])
@@ -155,6 +154,13 @@ if st.sidebar.button("🔄 Reimportar metadatos"):
     st.sidebar.success("Metadatos listos para reimportar.")
     st.rerun()
 
+st.sidebar.markdown("### DEBUG POST-IMPORT")
+st.sidebar.write("twd:", st.session_state.get("twd"))
+st.sidebar.write("twdshift:", st.session_state.get("twdshift"))
+st.sidebar.write("tws:", st.session_state.get("tws"))
+st.sidebar.write("twsg:", st.session_state.get("twsg"))
+st.sidebar.write("minuto_salida:", st.session_state.get("minuto_salida"))
+st.sidebar.write("meta:", st.session_state.meta)
 
 # =========================================================
 # 3) PREINICIALIZAR FILTRO Y CALCULAR df_filtro (ANTES LATERAL)
@@ -236,22 +242,6 @@ minuto_salida = st.sidebar.number_input(
     format="%d",
     key="minuto_salida",
 )
-
-# ========================================
-# SINCRONIZAR META DESDE WIDGETS (FUENTE REAL)
-# ========================================
-st.session_state.meta.update({
-    "TWD": st.session_state.get("meta_TWD", st.session_state.meta["TWD"]),
-    "TWDShift": st.session_state.get("meta_TWDShift", st.session_state.meta["TWDShift"]),
-    "TWS": st.session_state.get("meta_TWS", st.session_state.meta["TWS"]),
-    "TWSG": st.session_state.get("meta_TWSG", st.session_state.meta["TWSG"]),
-    "MINUTO_SALIDA": st.session_state.get(
-        "meta_MINUTO_SALIDA",
-        st.session_state.meta["MINUTO_SALIDA"]
-    ),
-    "NOTAS": st.session_state.get("notas", st.session_state.meta["NOTAS"]),
-})
-
 
 # Notas personales (usar session_state como fuente de verdad)
 notas = st.sidebar.text_area("Notas personales", key="notas")
