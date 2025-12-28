@@ -118,6 +118,11 @@ if meta_file and not st.session_state.meta_imported:
 
     meta_loaded = json.load(meta_file)
 
+    st.sidebar.markdown("### DEBUG META CLOUD")
+    st.sidebar.write("meta dict:", st.session_state.meta)
+    for k in ["meta_TWD", "meta_TWDShift", "meta_TWS", "meta_TWSG", "meta_MINUTO_SALIDA"]:
+        st.sidebar.write(k, "=", st.session_state.get(k, "<no existe>"))
+
     # Forzar estado de widgets (Cloud-safe)
     if "TWD" in meta_loaded:
         st.session_state["meta_TWD"] = float(meta_loaded["TWD"])
@@ -129,19 +134,6 @@ if meta_file and not st.session_state.meta_imported:
         st.session_state["meta_TWSG"] = float(meta_loaded["TWSG"])
     if "MINUTO_SALIDA" in meta_loaded:
         st.session_state["meta_MINUTO_SALIDA"] = int(meta_loaded["MINUTO_SALIDA"])
-
-    # Mantener meta como fuente lógica (opcional pero recomendable)
-    st.session_state.meta.update({
-        "TWD": st.session_state.get("meta_TWD", st.session_state.meta["TWD"]),
-        "TWDShift": st.session_state.get("meta_TWDShift", st.session_state.meta["TWDShift"]),
-        "TWS": st.session_state.get("meta_TWS", st.session_state.meta["TWS"]),
-        "TWSG": st.session_state.get("meta_TWSG", st.session_state.meta["TWSG"]),
-        "MINUTO_SALIDA": st.session_state.get(
-            "meta_MINUTO_SALIDA",
-            st.session_state.meta["MINUTO_SALIDA"]
-        ),
-        "NOTAS": meta_loaded.get("NOTAS", st.session_state.meta["NOTAS"]),
-    })
 
     # Actualizar estado persistente
     st.session_state["notas"] = meta["NOTAS"]
