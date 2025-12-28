@@ -118,14 +118,29 @@ if meta_file and not st.session_state.meta_imported:
 
     meta_loaded = json.load(meta_file)
 
-    # Actualizar metadatos escalares manteniendo identidad del dict
-    meta.update({
-        "TWD": int(meta_loaded.get("TWD", meta["TWD"])),
-        "TWDShift": int(meta_loaded.get("TWDShift", meta["TWDShift"])),
-        "TWS": int(meta_loaded.get("TWS", meta["TWS"])),
-        "TWSG": int(meta_loaded.get("TWSG", meta["TWSG"])),
-        "MINUTO_SALIDA": int(meta_loaded.get("MINUTO_SALIDA", meta["MINUTO_SALIDA"])),
-        "NOTAS": meta_loaded.get("NOTAS", meta["NOTAS"]),
+    # Forzar estado de widgets (Cloud-safe)
+    if "TWD" in meta_loaded:
+        st.session_state["meta_TWD"] = float(meta_loaded["TWD"])
+    if "TWDShift" in meta_loaded:
+        st.session_state["meta_TWDShift"] = float(meta_loaded["TWDShift"])
+    if "TWS" in meta_loaded:
+        st.session_state["meta_TWS"] = float(meta_loaded["TWS"])
+    if "TWSG" in meta_loaded:
+        st.session_state["meta_TWSG"] = float(meta_loaded["TWSG"])
+    if "MINUTO_SALIDA" in meta_loaded:
+        st.session_state["meta_MINUTO_SALIDA"] = int(meta_loaded["MINUTO_SALIDA"])
+
+    # Mantener meta como fuente lógica (opcional pero recomendable)
+    st.session_state.meta.update({
+        "TWD": st.session_state.get("meta_TWD", st.session_state.meta["TWD"]),
+        "TWDShift": st.session_state.get("meta_TWDShift", st.session_state.meta["TWDShift"]),
+        "TWS": st.session_state.get("meta_TWS", st.session_state.meta["TWS"]),
+        "TWSG": st.session_state.get("meta_TWSG", st.session_state.meta["TWSG"]),
+        "MINUTO_SALIDA": st.session_state.get(
+            "meta_MINUTO_SALIDA",
+            st.session_state.meta["MINUTO_SALIDA"]
+        ),
+        "NOTAS": meta_loaded.get("NOTAS", st.session_state.meta["NOTAS"]),
     })
 
     # Actualizar estado persistente
