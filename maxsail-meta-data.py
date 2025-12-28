@@ -111,17 +111,22 @@ meta_file = st.sidebar.file_uploader(
 )
 
 if meta_file and not st.session_state.meta_imported:
+    try:
+        meta_file.seek(0)  # recomendado en cloud/streamlit
+    except Exception:
+        pass
+
     meta_loaded = json.load(meta_file)
 
-    # Actualizar metadatos internos
-    meta["TWD"] = int(meta_loaded.get("TWD", meta.get("TWD", 0)))
-    meta["TWDShift"] = int(meta_loaded.get("TWDShift", meta.get("TWDShift", 0)))
-    meta["TWS"] = int(meta_loaded.get("TWS", meta.get("TWS", 0)))
-    meta["TWSG"] = int(meta_loaded.get("TWSG", meta.get("TWSG", 0)))
-    meta["MINUTO_SALIDA"] = int(
-        meta_loaded.get("MINUTO_SALIDA", meta.get("MINUTO_SALIDA", 5))
-    )
-    meta["NOTAS"] = meta_loaded.get("NOTAS", meta.get("NOTAS", ""))
+    # Actualizar metadatos escalares manteniendo identidad del dict
+    meta.update({
+        "TWD": int(meta_loaded.get("TWD", meta["TWD"])),
+        "TWDShift": int(meta_loaded.get("TWDShift", meta["TWDShift"])),
+        "TWS": int(meta_loaded.get("TWS", meta["TWS"])),
+        "TWSG": int(meta_loaded.get("TWSG", meta["TWSG"])),
+        "MINUTO_SALIDA": int(meta_loaded.get("MINUTO_SALIDA", meta["MINUTO_SALIDA"])),
+        "NOTAS": meta_loaded.get("NOTAS", meta["NOTAS"]),
+    })
 
     # Actualizar estado persistente
     st.session_state["notas"] = meta["NOTAS"]
