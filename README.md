@@ -1,7 +1,7 @@
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://maxsail-analytics.streamlit.app/)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/maxsail-project/maxsail-analytics)
 
-# maxSail-analytics
+# maxSail Project
 
 **Sailing Data, Better Decisions**  
 Analyze, compare and understand your sailing performance.
@@ -9,7 +9,7 @@ Analyze, compare and understand your sailing performance.
 **Con datos de navegación, mejores decisiones**  
 Analiza, compara y comprende tu rendimiento en el agua.
 
-[maxSail-analytics](https://maxsail-analytics.streamlit.app/) · [maxSail GPX Cutter](https://maxsail-gpx-cutter.streamlit.app/) · [maxSail Meta Data](https://maxsail-meta-data.streamlit.app/)
+[maxSail-analytics](https://maxsail-analytics.streamlit.app/) · [maxSail GPX Cutter](https://maxsail-gpx-cutter.streamlit.app/) · [maxSail Metadata](https://maxsail-meta-data.streamlit.app/)
 
 Puedes descargar los GPX de este repo para hacer pruebas o mejor aún: usar los tuyos.  
 You can download the GPX files from this repo for testing, or even better: use your own.
@@ -18,22 +18,25 @@ You can download the GPX files from this repo for testing, or even better: use y
 
 ## Índice / Table of Contents
 
-- [Descripción general / Overview](#descripción-general--overview)
-- [maxSail-analytics](#maxsail-analytics)
-  - [Características principales / Main features](#características-principales--main-features)
-- [maxSail GPX Cutter](#maxsail-gpx-cutter)
-- [maxSail Meta Data](#maxsail-meta-data)
-- [Instalación / Installation](#instalación--installation)
-- [Uso básico / Basic usage](#uso-básico--basic-usage)
-- [Formato esperado del archivo CSV / Expected CSV format](#formato-esperado-del-archivo-csv--expected-csv-format)
-- [Wiki](#wiki)
-- [Sobre el autor / About the author](#sobre-el-autor--about-the-author)
-- [Contacto / Contact](#contacto--contact)
-- [Aviso legal / Disclaimer](#aviso-legal--disclaimer)
-- [Licencia / License](#licencia--license)
-- [Contribuciones / Contributions](#contribuciones--contributions)
+- [maxSail Project](#maxsail-project)
+  - [Índice / Table of Contents](#índice--table-of-contents)
+  - [Descripción general / Overview](#descripción-general--overview)
+  - [maxSail-analytics](#maxsail-analytics)
+    - [Características principales / Main features](#características-principales--main-features)
+  - [maxSail GPX Cutter](#maxsail-gpx-cutter)
+  - [maxSail Metadata](#maxsail-metadata)
+  - [Instalación / Installation](#instalación--installation)
+  - [Uso básico / Basic usage](#uso-básico--basic-usage)
+  - [Formato esperado del archivo CSV / Expected CSV format](#formato-esperado-del-archivo-csv--expected-csv-format)
+  - [Sobre el autor / About the author](#sobre-el-autor--about-the-author)
+  - [Wiki](#wiki)
+  - [Contacto / Contact](#contacto--contact)
+  - [Aviso legal / Disclaimer](#aviso-legal--disclaimer)
+  - [Licencia / License](#licencia--license)
+  - [Contribuciones / Contributions](#contribuciones--contributions)
 
 ---
+
 ## Descripción general / Overview
 
 **maxSail-analytics** y **maxSail GPX Cutter** son herramientas open source para visualizar, analizar, comparar y limpiar tracks GPS de regatas y entrenamientos de vela ligera y crucero.  
@@ -45,8 +48,8 @@ You can download the GPX files from this repo for testing, or even better: use y
 - **maxSail GPX Cutter:** Recorta tramos de tus tracks GPX de forma visual y sencilla, para limpiar y exportar solo lo que te interesa.  
   **maxSail GPX Cutter:** Visually trim segments of your GPX tracks to clean and export only what you need.
 
-- **maxSail Meta Data:** Gestiona fácilmente metadatos de tus tracks (dirección y fuerza del viento, minuto de salida, notas, balizas) mediante archivos `-meta-data.json` asociados a cada GPX. Reproduce, comparte y analiza sesiones con máxima fidelidad.  
-  **maxSail Meta Data:** Easily manage track metadata (wind direction and strength, start minute, notes, marks) using `-meta-data.json` files linked to each GPX. Replay, share, and analyze sessions with maximum fidelity.
+- **maxSail Metadata:** Gestiona fácilmente metadatos de tus tracks (dirección y fuerza del viento, minuto de salida, notas, balizas) mediante archivos `-meta-data.json` asociados a cada GPX. Reproduce, comparte y analiza sesiones con máxima fidelidad.  
+  **maxSail Metadata:** Easily manage track metadata (wind direction and strength, start minute, notes, marks) using `-meta-data.json` files linked to each GPX. Replay, share, and analyze sessions with maximum fidelity.
 
 ---
 
@@ -93,11 +96,11 @@ It allows you to load GPX or CSV files, display tracks on an interactive map, co
 
 ---
 
-## maxSail Meta Data
+## maxSail Metadata
 
 [![Abrir en Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://maxsail-meta-data.streamlit.app/)
 
-**maxSail Meta Data** es un utilitario open source para gestionar y editar los metadatos de tus tracks de navegación (por ejemplo, viento, salida, notas, balizas) mediante archivos `-meta-data.json` vinculados a cada GPX. Pensado para regatistas que buscan reproducibilidad, organización avanzada y análisis colaborativo.
+**maxSail Metadata** es un utilitario open source para gestionar y editar los metadatos de tus tracks de navegación (por ejemplo, viento, salida, notas, balizas) mediante archivos `-meta-data.json` vinculados a cada GPX. Pensado para regatistas que buscan reproducibilidad, organización avanzada y análisis colaborativo.
 
 > [¡Probar ahora en Streamlit!](https://maxsail-meta-data.streamlit.app/)
 
@@ -105,7 +108,8 @@ It allows you to load GPX or CSV files, display tracks on an interactive map, co
 
 ## Instalación / Installation
 
-Versión on-line / Online versions:  
+Versión on-line / Online versions:
+
 - [https://maxsail-analytics.streamlit.app/](https://maxsail-analytics.streamlit.app/)  
 - [https://maxsail-gpx-cutter.streamlit.app/](https://maxsail-gpx-cutter.streamlit.app/)
 
@@ -177,11 +181,10 @@ The viewer expects normalized CSV files with at least the following columns:
 - Si no hay `SourceFile`, se usará el nombre del archivo.\
   If `SourceFile` is missing, the filename will be used as the track ID.
 
-
 ## Sobre el autor / About the author
 
-¡Hola! Soy Maximiliano Mannise, ingeniero en informática (trabajando desde 1998), fanático de los datos, indicadores y métricas. Navego desde hace más de 20 años: primero por diversión, luego en regatas de crucero y desde 2020 en vela ligera clase Snipe. 
-Por deformación profesional, suelo llevar todo al terreno analítico. Aunque existen software muy profesionales para análisis de datos de navegación, buscaba una herramienta **simple, personal, rápida de usar**... y de repente me encontré desarrollando esta aplicación, que ahora comparto con otros regatistas. ¡Estoy seguro de que no soy el único que disfruta mirar los datos después de cada regata! 
+¡Hola! Soy Maximiliano Mannise, ingeniero en informática (trabajando desde 1998), fanático de los datos, indicadores y métricas. Navego desde hace más de 20 años: primero por diversión, luego en regatas de crucero y desde 2020 en vela ligera clase Snipe.
+Por deformación profesional, suelo llevar todo al terreno analítico. Aunque existen software muy profesionales para análisis de datos de navegación, buscaba una herramienta **simple, personal, rápida de usar**... y de repente me encontré desarrollando esta aplicación, que ahora comparto con otros regatistas. ¡Estoy seguro de que no soy el único que disfruta mirar los datos después de cada regata!
 Si bien está pensado para analizar información básica a partir de un GPX, se puede extender a análisis más completos con CSV que contengan más variables... algo de eso ya estoy preparando.
 
 Hi! I'm Maximiliano Mannise, a software engineer (working since 1998), data geek, and passionate sailor. I've been sailing for more than 20 years, first for fun, then in cruising regattas, and since 2020, in the Snipe dinghy class.
