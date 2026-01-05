@@ -65,20 +65,6 @@ uploaded_files = st.sidebar.file_uploader(
     accept_multiple_files=True
 )
 
-meta_file = st.sidebar.file_uploader(
-    "📄 (Opcional) Meta-data JSON",
-    type=["json"],
-    accept_multiple_files=False
-)
-meta_data = {}
-if meta_file is not None:
-    try:
-        meta_data = json.load(meta_file)
-    except Exception as e:
-        st.sidebar.error(f"Error leyendo meta-data JSON: {e}")
-
-tramos_meta = meta_data.get("TRAMOS", [])
-
 if not uploaded_files:
     st.info("Sube al menos un archivo GPX o CSV para comenzar.")
     st.markdown("""
@@ -157,18 +143,6 @@ if not dfs:
 
 df = pd.concat(dfs, ignore_index=True)
 
-# --- Comprobación de coincidencia con ARCHIVO_TRACK (si existe) ---
-if meta_data.get("ARCHIVO_TRACK"):
-    esperado = str(meta_data["ARCHIVO_TRACK"]).strip()
-    try:
-        archivos_subidos = [f.name for f in uploaded_files]
-        if esperado and archivos_subidos and all(esperado != n for n in archivos_subidos):
-            #st.sidebar.warning(f"El meta-data sugiere '{esperado}', pero los archivos cargados son: {', '.join(archivos_subidos)}")
-            st.sidebar.warning("Fichero de metadatos con nombre distinto a tracks")
-    except Exception:
-        pass
-
-
 # --- Selección de tracks ---
 if "SourceFile" in df.columns:
     track_files = sorted(df['SourceFile'].dropna().unique().tolist(), reverse=True)
@@ -182,8 +156,6 @@ else:
 
 df1          = df[df['SourceFile'] == track1].copy() if track1 != "(Ninguno)" else pd.DataFrame()
 df2          = df[df['SourceFile'] == track2].copy() if track2 != "(Ninguno)" else pd.DataFrame()
-#df1_original = df[df['SourceFile'] == track1].copy() if track1 != "(Ninguno)" else pd.DataFrame()
-#df2_original = df[df['SourceFile'] == track2].copy() if track2 != "(Ninguno)" else pd.DataFrame()
 df1_sync     = df[df['SourceFile'] == track1].copy() if track1 != "(Ninguno)" else pd.DataFrame()
 df2_sync     = df[df['SourceFile'] == track2].copy() if track2 != "(Ninguno)" else pd.DataFrame()
 
@@ -214,6 +186,32 @@ if not df1.empty and not df2.empty and "UTC" in df1.columns and "UTC" in df2.col
         # --- Sustituir dataframes base ---
         df1 = df1_sync
         df2 = df2_sync
+
+# --- Cargo fichero de metadatos JSON 
+meta_file = st.sidebar.file_uploader(
+    "📄 (Opcional) Meta-data JSON",
+    type=["json"],
+    accept_multiple_files=False
+)
+meta_data = {}
+if meta_file is not None:
+    try:
+        meta_data = json.load(meta_file)
+    except Exception as e:
+        st.sidebar.error(f"Error leyendo meta-data JSON: {e}")
+
+tramos_meta = meta_data.get("TRAMOS", [])
+
+# --- Comprobación de coincidencia con ARCHIVO_TRACK (si existe) ---
+if meta_data.get("ARCHIVO_TRACK"):
+    esperado = str(meta_data["ARCHIVO_TRACK"]).strip()
+    try:
+        archivos_subidos = [f.name for f in uploaded_files]
+        if esperado and archivos_subidos and all(esperado != n for n in archivos_subidos):
+            #st.sidebar.warning(f"El meta-data sugiere '{esperado}', pero los archivos cargados son: {', '.join(archivos_subidos)}")
+            st.sidebar.warning("Fichero de metadatos con nombre distinto a tracks")
+    except Exception:
+        pass
 
 # --- Ingreso manual de TWD ---
 twd = st.sidebar.number_input(
