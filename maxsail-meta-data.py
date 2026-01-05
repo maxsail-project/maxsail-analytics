@@ -154,14 +154,6 @@ if st.sidebar.button("🔄 Reimportar metadatos"):
     st.sidebar.success("Metadatos listos para reimportar.")
     st.rerun()
 
-st.sidebar.markdown("### DEBUG POST-IMPORT")
-st.sidebar.write("twd:", st.session_state.get("twd"))
-st.sidebar.write("twdshift:", st.session_state.get("twdshift"))
-st.sidebar.write("tws:", st.session_state.get("tws"))
-st.sidebar.write("twsg:", st.session_state.get("twsg"))
-st.sidebar.write("minuto_salida:", st.session_state.get("minuto_salida"))
-st.sidebar.write("meta:", st.session_state.meta)
-
 # =========================================================
 # 3) PREINICIALIZAR FILTRO Y CALCULAR df_filtro (ANTES LATERAL)
 # =========================================================
