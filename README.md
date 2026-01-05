@@ -90,9 +90,13 @@ It allows you to load GPX or CSV files, display tracks on an interactive map, co
 
 [![Abrir en Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://maxsail-gpx-cutter.streamlit.app/)
 
-**maxSail GPX Cutter** es un utilitario open source que te permite recortar tramos de tus archivos GPX de forma visual e interactiva, pensado para regatistas y navegantes que quieren analizar sólo los tramos relevantes de su track (por ejemplo, eliminando la ida o el regreso a puerto).
+**maxSail GPX Cutter** es un utilitario open source que te permite recortar tramos de tus archivos GPX de forma visual e interactiva, pensado para regatistas y navegantes que quieren analizar solo los tramos relevantes de su track (por ejemplo, eliminando la ida o el regreso a puerto).
+
+**maxSail GPX Cutter** is an open-source utility that allows you to visually and interactively trim segments from your GPX files. It is designed for sailors and racers who want to analyze only the relevant parts of their tracks (for example, removing the trip to or from the harbor).
+
 
 > [¡Probar ahora en Streamlit!](https://maxsail-gpx-cutter.streamlit.app/)
+> [Try it in Streamlit!](https://maxsail-gpx-cutter.streamlit.app/)
 
 ---
 
@@ -102,7 +106,10 @@ It allows you to load GPX or CSV files, display tracks on an interactive map, co
 
 **maxSail Metadata** es un utilitario open source para gestionar y editar los metadatos de tus tracks de navegación (por ejemplo, viento, salida, notas, balizas) mediante archivos `-meta-data.json` vinculados a cada GPX. Pensado para regatistas que buscan reproducibilidad, organización avanzada y análisis colaborativo.
 
+**maxSail Metadata** is an open-source utility for managing and editing navigation track metadata (such as wind, start time, notes, and marks) using `-meta-data.json` files linked to each GPX. It is designed for sailors who seek reproducibility, advanced organization, and collaborative analysis.
+
 > [¡Probar ahora en Streamlit!](https://maxsail-meta-data.streamlit.app/)
+> [Try it in Streamlit!](https://maxsail-meta-data.streamlit.app/)
 
 ---
 
