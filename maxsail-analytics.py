@@ -41,6 +41,72 @@ def mean_circ_signed_deg(series):
         return np.nan
     return float(circmean(s, high=180, low=-180))
 
+# -----------------------------
+# Vakaros import helpers (CSV)
+# -----------------------------
+
+from math import radians, sin, cos, asin, sqrt
+
+def _haversine_m(lat1, lon1, lat2, lon2):
+    """Great-circle distance in meters."""
+    R = 6371000.0
+    phi1, phi2 = radians(lat1), radians(lat2)
+    dphi = radians(lat2 - lat1)
+    dl = radians(lon2 - lon1)
+    a = sin(dphi/2)**2 + cos(phi1)*cos(phi2)*sin(dl/2)**2
+    return 2 * R * asin(sqrt(a))
+
+def _ensure_dist_column(df):
+    """Add Dist column (meters between consecutive points)."""
+    if df.empty:
+        df["Dist"] = []
+        return df
+
+    d = [0.0]
+    for i in range(1, len(df)):
+        d.append(_haversine_m(
+            df.loc[i-1, "Lat"], df.loc[i-1, "Lon"],
+            df.loc[i, "Lat"], df.loc[i, "Lon"]
+        ))
+    df["Dist"] = d
+    return df
+
+def normalize_vakaros_csv(df_raw, source_name):
+    """Map Vakaros CSV columns to maxSail normalized schema."""
+    df = df_raw.copy()
+
+    # expected columns from Vakaros:
+    # timestamp,latitude,longitude,sog_kts,cog,hdg_true,heel,trim
+    df = df.rename(columns={
+        "timestamp": "UTC",
+        "latitude": "Lat",
+        "longitude": "Lon",
+        "sog_kts": "SOG",
+        "cog": "COG",
+    })
+
+    # Compatibilidad maxSail: el core usa SOGS en varios sitios
+    if "SOG" in df.columns and "SOGS" not in df.columns:
+        df["SOGS"] = df["SOG"]
+
+    # Normaliza tiempo: convierte a UTC real y deja naive (datetime64[ns])
+    df["UTC"] = pd.to_datetime(df["UTC"], utc=True).dt.tz_convert(None)
+
+    # Coerce numeric
+    for c in ["Lat", "Lon", "SOG", "SOGS", "COG"]:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+
+    # Orden / limpieza básica
+    df = df.dropna(subset=["UTC", "Lat", "Lon"]).sort_values("UTC").reset_index(drop=True)
+
+    # Distancia incremental
+    df = _ensure_dist_column(df)
+
+    # Metadato útil
+    df["SourceFile"] = source_name
+
+    return df
 
 # -----------------------------
 # INICIO APP STREAMLIT
@@ -98,10 +164,14 @@ if not uploaded_files:
 
     ### Formato esperado del archivo CSV / Expected CSV format
 
-    El visor requiere archivos CSV normalizados con al menos estas columnas:  
-    *The viewer requires normalized CSV files with at least these columns:*
+    El visor requiere archivos CSV normalizados con al menos estas columnas.  
+    También se aceptan archivos **CSV exportados desde Vakaros Analyze**, siempre que cumplan este formato o hayan sido previamente normalizados.
 
-    - **Lat, Lon, UTC, COG, SOG, Dist, SourceFile (optional)** [more info](https://github.com/maxsail-project/maxsail-analytics/blob/main/README.md#formato-esperado-del-archivo-csv--expected-csv-format)
+    *The viewer requires normalized CSV files with at least these columns.  
+    CSV files exported from Vakaros Analyze are also supported, provided they match this format or are normalized beforehand.*
+
+    - **Lat, Lon, UTC, COG, SOG, Dist, SourceFile (optional)**  
+    [more info](https://github.com/maxsail-project/maxsail-analytics/blob/main/README.md#formato-esperado-del-archivo-csv--expected-csv-format)
 
     ---
 
@@ -124,12 +194,22 @@ if not uploaded_files:
 dfs = []
 for file in uploaded_files:
     if file.name.lower().endswith('.csv'):
-        df = pd.read_csv(file, delimiter=',')
-        if not all(col in df.columns for col in ['Lat', 'Lon', 'UTC', 'COG', 'SOG', 'Dist']):
+        df_raw = pd.read_csv(file, delimiter=',')
+
+        # 1) Normalizado maxSail
+        if all(col in df_raw.columns for col in ['Lat', 'Lon', 'UTC', 'COG', 'SOG', 'Dist']):
+            df = df_raw
+            if not np.issubdtype(df['UTC'].dtype, np.datetime64):
+                df['UTC'] = pd.to_datetime(df['UTC'], errors='coerce')
+
+        # 2) Vakaros CSV (timestamp, latitude, longitude, sog_kts, cog, ...)
+        elif all(col in df_raw.columns for col in ['timestamp', 'latitude', 'longitude', 'sog_kts', 'cog']):
+            df = normalize_vakaros_csv(df_raw, file.name)
+
+        else:
             st.warning(f"El archivo {file.name} no tiene columnas requeridas.")
             continue
-        if not np.issubdtype(df['UTC'].dtype, np.datetime64):
-            df['UTC'] = pd.to_datetime(df['UTC'])
+
         if "SourceFile" not in df.columns:
             df["SourceFile"] = file.name
         dfs.append(df)
@@ -947,9 +1027,10 @@ for label, df in zip(track_labels, track_dfs):
     sog_vals[label] = sog_avg
 
     # --- COG dominantes ---
+    COG_BIN_SIZE = 5  # grados
     modes = circular_modes_deg(
         df["COG"], 
-        bin_size=10, #<<-- Ajusta el tamaño de bin si quieres más o menos resolución
+        bin_size=COG_BIN_SIZE, #<<-- Ajusta el tamaño de bin si quieres más o menos resolución
         top_n=2)
     cog1 = f"{modes[0][0]:.0f}° ({modes[0][1]:.0f}%)" if len(modes) > 0 else "-"
     cog2 = f"{modes[1][0]:.0f}° ({modes[1][1]:.0f}%)" if len(modes) > 1 else "-"
@@ -1056,15 +1137,15 @@ st.dataframe(tabla_sog, use_container_width=True)
 # === Rosa de COG (frecuencia) – 10° por sector, colores de tracks ===
 import matplotlib.pyplot as plt
 
-st.subheader("🌬️ Rosa de COG – Frecuencia (10°)")
+st.subheader(f"🌬️ Rosa de COG – Frecuencia ({COG_BIN_SIZE}°)")
 st.markdown("""
 La dirección de la barra representa el rumbo (COG) del barco y la longitud representa el % del tiempo estuvo navegando en ese rumbo.
 """)
 
 # Bins: 36 sectores de 10°
-edges_deg = np.arange(0, 361, 10)            # [0, 10, 20, ..., 360]
+edges_deg = np.arange(0, 361, COG_BIN_SIZE)            # [0, 10, 20, ..., 360]
 sector_labels = [f"{int(x)}" for x in edges_deg[:-1]]
-width = np.deg2rad(10)                       # ancho de cada barra
+width = np.deg2rad(COG_BIN_SIZE)                       # ancho de cada barra
 
 def _rose_freq(df_src, titulo="Rosa COG", facecolor="#999999", edgecolor="black", alpha=0.85):
     fig = plt.figure(figsize=(3, 3))
@@ -1085,6 +1166,8 @@ def _rose_freq(df_src, titulo="Rosa COG", facecolor="#999999", edgecolor="black"
 
     # Ángulo de inicio de cada sector (0°, 10°, 20°...). Si prefieres centrar, suma 5° antes de pasar a radianes.
     angles = np.deg2rad(freq.index.astype(float).values) if len(freq) else np.array([])
+    # Centro de cada sector (por ejemplo, 5°, 15°, ..., 355°)
+    angles = np.deg2rad(freq.index.astype(float).values + 5) if len(freq) else np.array([])
 
     # Dibujo
     if len(freq):
@@ -1148,7 +1231,7 @@ for track_label, track_df in zip(track_labels, track_dfs):
     m1 = m2 = m3 = m4 = diff = cog_std = "-"
     if not track_df.empty and "COG" in track_df and not track_df["COG"].isnull().all():
 
-        modes = circular_modes_deg(track_df["COG"], bin_size=10, top_n=4)
+        modes = circular_modes_deg(track_df["COG"], bin_size=COG_BIN_SIZE, top_n=4)
 
         if len(modes) >= 1:
             m1 = f"{modes[0][0]:.0f}° ({modes[0][1]:.0f}%)"
