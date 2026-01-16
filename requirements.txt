@@ -9,3 +9,4 @@ scipy
 requests
 haversine
 matplotlib
+fitparse
