@@ -4,6 +4,13 @@ import pandas as pd
 import pydeck as pdk
 from datetime import datetime, timedelta
 import os
+import io
+
+# Optional FIT support (requires: pip install fitparse)
+try:
+    from fitparse import FitFile
+except Exception:
+    FitFile = None
 
 st.set_page_config(page_title="maxSail GPX Cutter", layout="wide")
 st.title("⛵ maxSail GPX Cutter")
@@ -18,11 +25,11 @@ MAPTILER_STYLES = {
 fondo = st.sidebar.selectbox("Fondo de mapa", list(MAPTILER_STYLES.keys()), index=0)
 map_style = MAPTILER_STYLES[fondo]
 
-# --- Sidebar: subir archivo GPX ---
+# --- Sidebar: subir archivo (GPX / VKX / FIT) ---
 uploaded_file = st.sidebar.file_uploader(
-    "📂 Selecciona un archivo GPX", 
-    type="gpx",
-    accept_multiple_files=False
+    "📂 Selecciona un archivo (GPX / VKX / FIT)",
+    type=["gpx", "vkx", "fit"],
+    accept_multiple_files=False,
 )
 
 # --- Funciones ---
@@ -99,9 +106,120 @@ def filtrar_por_timestamp(df, ts_ini, ts_fin):
             st.warning(f"Timestamp de fin inválido: {ts_fin}")
     return df
 
+
+# --- Importers: VKX / FIT -> GPX (in-memory) ---
+def vkx_bytes_to_gpx_xml(vkx_bytes: bytes, *, name: str = "Vakaros VKX") -> str:
+    """Convert Vakaros VKX bytes to GPX XML (minimal: lat/lon/time/ele).
+
+    Extracts row 0x02 per VKX v1.4 public specification.
+    """
+    import datetime as dt
+    import struct
+    import xml.etree.ElementTree as ET
+
+    # Fixed payload sizes by row key (bytes), per VKX spec.
+    row_sizes = {
+        0xFF: 7, 0xFE: 2, 0x02: 44, 0x03: 20, 0x04: 13, 0x05: 17, 0x06: 18,
+        0x08: 13, 0x0A: 16, 0x0B: 16, 0x0C: 12, 0x0F: 16, 0x10: 12,
+        # internal rows (skip correctly)
+        0x01: 32, 0x07: 12, 0x0E: 16, 0x20: 13, 0x21: 52,
+    }
+
+    bio = io.BytesIO(vkx_bytes)
+    pts = []
+
+    # Row 0x02: <Q ii 7f  => ts_ms, lat_e7, lon_e7, sog_mps, cog_rad, alt_m, qw,qx,qy,qz
+    fmt_02 = "<Qii" + "f" * 7
+
+    while True:
+        key_b = bio.read(1)
+        if not key_b:
+            break
+        key = key_b[0]
+        size = row_sizes.get(key)
+        if size is None:
+            # Unknown key: stop to avoid misalignment
+            break
+        payload = bio.read(size)
+        if len(payload) != size:
+            break
+
+        if key == 0x02:
+            ts_ms, lat_e7, lon_e7, sog_mps, cog_rad, alt_m, qw, qx, qy, qz = struct.unpack(fmt_02, payload)
+            t = dt.datetime.fromtimestamp(ts_ms / 1000.0, tz=dt.timezone.utc)
+            pts.append((t, lat_e7 * 1e-7, lon_e7 * 1e-7, float(alt_m)))
+
+    pts.sort(key=lambda x: x[0])
+
+    ns = "http://www.topografix.com/GPX/1/1"
+    ET.register_namespace("", ns)
+
+    gpx = ET.Element(f"{{{ns}}}gpx", attrib={"version": "1.1", "creator": "maxSail GPX Cutter"})
+    meta = ET.SubElement(gpx, f"{{{ns}}}metadata")
+    meta_time = pts[0][0] if pts else dt.datetime.now(dt.timezone.utc)
+    ET.SubElement(meta, f"{{{ns}}}time").text = meta_time.isoformat().replace("+00:00", "Z")
+
+    trk = ET.SubElement(gpx, f"{{{ns}}}trk")
+    ET.SubElement(trk, f"{{{ns}}}name").text = name
+    seg = ET.SubElement(trk, f"{{{ns}}}trkseg")
+
+    for t, lat, lon, ele in pts:
+        trkpt = ET.SubElement(seg, f"{{{ns}}}trkpt", attrib={"lat": f"{lat:.7f}", "lon": f"{lon:.7f}"})
+        ET.SubElement(trkpt, f"{{{ns}}}ele").text = f"{ele:.2f}"
+        ET.SubElement(trkpt, f"{{{ns}}}time").text = t.isoformat().replace("+00:00", "Z")
+
+    return ET.tostring(gpx, encoding="utf-8", xml_declaration=True).decode("utf-8")
+
+
+def fit_bytes_to_gpx_xml(fit_bytes: bytes, *, name: str = "FIT Track") -> str:
+    """Convert FIT bytes to GPX XML (minimal: lat/lon/time/ele)."""
+    if FitFile is None:
+        raise RuntimeError("Dependencia 'fitparse' no disponible. Instala: pip install fitparse")
+
+    import gpxpy.gpx
+
+    fit = FitFile(io.BytesIO(fit_bytes))
+    gpx = gpxpy.gpx.GPX()
+    track = gpxpy.gpx.GPXTrack()
+    track.name = name
+    gpx.tracks.append(track)
+    segment = gpxpy.gpx.GPXTrackSegment()
+    track.segments.append(segment)
+
+    for record in fit.get_messages('record'):
+        fields = {d.name: d.value for d in record}
+        if 'position_lat' in fields and 'position_long' in fields:
+            lat = fields['position_lat'] * (180 / 2**31)
+            lon = fields['position_long'] * (180 / 2**31)
+            elevation = fields.get('altitude')
+            time = fields.get('timestamp')
+            point = gpxpy.gpx.GPXTrackPoint(latitude=lat, longitude=lon, elevation=elevation, time=time)
+            segment.points.append(point)
+
+    return gpx.to_xml()
+
 # --- Main ---
 if uploaded_file:
-    gpx = gpxpy.parse(uploaded_file)
+    ext = uploaded_file.name.lower().split(".")[-1]
+
+    if ext == "gpx":
+        gpx = gpxpy.parse(uploaded_file)
+    elif ext == "vkx":
+        vkx_bytes = uploaded_file.read()
+        gpx_xml = vkx_bytes_to_gpx_xml(vkx_bytes, name=os.path.splitext(uploaded_file.name)[0])
+        gpx = gpxpy.parse(io.StringIO(gpx_xml))
+    elif ext == "fit":
+        fit_bytes = uploaded_file.read()
+        try:
+            gpx_xml = fit_bytes_to_gpx_xml(fit_bytes, name=os.path.splitext(uploaded_file.name)[0])
+        except Exception as e:
+            st.error(f"No se pudo convertir FIT a GPX: {e}")
+            st.stop()
+        gpx = gpxpy.parse(io.StringIO(gpx_xml))
+    else:
+        st.error("Formato no soportado. Usa GPX, VKX o FIT.")
+        st.stop()
+
     df = gpx_to_df(gpx)
     df['time'] = pd.to_datetime(df['time'])
     df = df.sort_values('time').reset_index(drop=True)
@@ -284,7 +402,7 @@ if uploaded_file:
             mime="application/gpx+xml"
         )
 else:
-    st.info("Sube un archivo GPX para comenzar.")
+    st.info("Sube un archivo GPX, VKX o FIT para comenzar.")
 
 # --- DATOS DE CONTACTO Y DISCLAIMER ---
 st.markdown("""
@@ -315,4 +433,4 @@ with st.sidebar:
 
 with st.sidebar:
     st.markdown("---")
-    st.markdown("**Versión:** v1.1.0  \n[Changelog](https://github.com/maxsail-project/maxsail-analytics/blob/main/CHANGELOG.md)")
+    st.markdown("**Versión:** v1.2.0  \n[Changelog](https://github.com/maxsail-project/maxsail-analytics/blob/main/CHANGELOG.md)")
