@@ -1027,7 +1027,7 @@ for label, df in zip(track_labels, track_dfs):
     sog_vals[label] = sog_avg
 
     # --- COG dominantes ---
-    COG_BIN_SIZE = 5  # grados
+    COG_BIN_SIZE = 10  # grados
     modes = circular_modes_deg(
         df["COG"], 
         bin_size=COG_BIN_SIZE, #<<-- Ajusta el tamaño de bin si quieres más o menos resolución
@@ -1137,15 +1137,19 @@ st.dataframe(tabla_sog, use_container_width=True)
 # === Rosa de COG (frecuencia) – 10° por sector, colores de tracks ===
 import matplotlib.pyplot as plt
 
-st.subheader(f"🌬️ Rosa de COG – Frecuencia ({COG_BIN_SIZE}°)")
+st.subheader(f"🌬️ Rosa de COG – Frecuencia ({COG_BIN_SIZE}°) por defecto")
 st.markdown("""
 La dirección de la barra representa el rumbo (COG) del barco y la longitud representa el % del tiempo estuvo navegando en ese rumbo.
 """)
-
+cog_bin = st.number_input(
+    "Tamaño de la ventana COG (grados):",
+    min_value=5, max_value=20, value=COG_BIN_SIZE, step=5,
+    help="Tamaño del sector angular para la rosa de COG. Valores menores muestran más detalle."
+)
 # Bins: 36 sectores de 10°
-edges_deg = np.arange(0, 361, COG_BIN_SIZE)            # [0, 10, 20, ..., 360]
+edges_deg = np.arange(0, 360 + cog_bin, cog_bin) # de 0 a 360 inclusive
 sector_labels = [f"{int(x)}" for x in edges_deg[:-1]]
-width = np.deg2rad(COG_BIN_SIZE)                       # ancho de cada barra
+width = np.deg2rad(cog_bin)   # ancho de cada barra
 
 def _rose_freq(df_src, titulo="Rosa COG", facecolor="#999999", edgecolor="black", alpha=0.85):
     fig = plt.figure(figsize=(3, 3))
@@ -1228,10 +1232,10 @@ cog_data = {}
 for track_label, track_df in zip(track_labels, track_dfs):
 
     # --- valores por defecto SIEMPRE ---
-    m1 = m2 = m3 = m4 = diff = cog_std = "-"
+    m1 = m2 = m3 = m4 = m5 = m6 = diff = cog_std = "-"
     if not track_df.empty and "COG" in track_df and not track_df["COG"].isnull().all():
 
-        modes = circular_modes_deg(track_df["COG"], bin_size=COG_BIN_SIZE, top_n=4)
+        modes = circular_modes_deg(track_df["COG"], bin_size=cog_bin, top_n=6)
 
         if len(modes) >= 1:
             m1 = f"{modes[0][0]:.0f}° ({modes[0][1]:.0f}%)"
@@ -1243,10 +1247,14 @@ for track_label, track_df in zip(track_labels, track_dfs):
             m3 = f"{modes[2][0]:.0f}° ({modes[2][1]:.0f}%)"
         if len(modes) >= 4:
             m4 = f"{modes[3][0]:.0f}° ({modes[3][1]:.0f}%)"
+        if len(modes) >= 5:
+            m5 = f"{modes[4][0]:.0f}° ({modes[4][1]:.0f}%)"
+        if len(modes) >= 6:
+            m6 = f"{modes[5][0]:.0f}° ({modes[5][1]:.0f}%)"
 
         cog_std = f"{circstd(track_df['COG'].dropna(), high=360, low=0):.1f}"
 
-    cog_data[track_label] = [m1, m2, m3, m4, diff, cog_std]
+    cog_data[track_label] = [m1, m2, m3, m4, m5, m6, diff, cog_std]
 
 tabla_cog = pd.DataFrame(
     cog_data,
@@ -1255,6 +1263,8 @@ tabla_cog = pd.DataFrame(
         "COG dominante 2",
         "COG dominante 3",
         "COG dominante 4",
+        "COG dominante 5",
+        "COG dominante 6",
         "Separación angular",
         "Dispersión (std)*",
     ],
