@@ -5,7 +5,7 @@ All new features, changes, and fixes for **maxSail-analytics** will be listed he
 
 ---
 
-## [v1.2.2] - 2026-01-16
+## [v1.2.2] - UNRELEASED
 
 ### Español 🇪🇸
 
