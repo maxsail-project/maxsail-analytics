@@ -255,6 +255,11 @@ meta.update(
 # ============================
 st.sidebar.markdown("### Balizas")
 
+# Nota de semántica: cuando la baliza está en autoupdate, se sincroniza con el extremo del tramo filtrado.
+st.sidebar.caption(
+    "📝 Nota: en *autoupdate*, la baliza temporal se toma del **punto final** del tramo filtrado (último punto)."
+)
+
 
 def reset_baliza_temp() -> dict:
     # Usa df_filtro si existe; si no, primer punto del track
@@ -263,8 +268,9 @@ def reset_baliza_temp() -> dict:
         and isinstance(st.session_state.df_filtro, pd.DataFrame)
         and not st.session_state.df_filtro.empty
     ):
-        lat = float(round(st.session_state.df_filtro["Lat"].iloc[0], 5))
-        lon = float(round(st.session_state.df_filtro["Lon"].iloc[0], 5))
+        # Por defecto, la baliza temporal se asocia al FIN del tramo filtrado.
+        lat = float(round(st.session_state.df_filtro["Lat"].iloc[-1], 5))
+        lon = float(round(st.session_state.df_filtro["Lon"].iloc[-1], 5))
     else:
         lat = float(round(df["Lat"].iloc[0], 5))
         lon = float(round(df["Lon"].iloc[0], 5))
@@ -282,7 +288,7 @@ if "show_temp" not in st.session_state:
 if "baliza_locked" not in st.session_state:
     st.session_state.baliza_locked = False
 
-# ---- AUTO-SYNC de baliza con inicio del tramo si cambia el filtro ----
+# ---- AUTO-SYNC de baliza con FIN del tramo si cambia el filtro ----
 current_sig = (
     tuple(st.session_state.slider_rango),
     int(st.session_state.seg_ini),
@@ -295,8 +301,8 @@ st.sidebar.checkbox("Bloquear autoupdate de baliza", key="baliza_locked")
 
 if current_sig != st.session_state.last_filter_sig and not st.session_state.baliza_locked:
     if not st.session_state.df_filtro.empty:
-        lat0 = float(round(st.session_state.df_filtro["Lat"].iloc[0], 5))
-        lon0 = float(round(st.session_state.df_filtro["Lon"].iloc[0], 5))
+        lat0 = float(round(st.session_state.df_filtro["Lat"].iloc[-1], 5))
+        lon0 = float(round(st.session_state.df_filtro["Lon"].iloc[-1], 5))
         st.session_state.baliza_temp["lat"] = lat0
         st.session_state.baliza_temp["lon"] = lon0
         st.session_state["lat_b_new"] = lat0
@@ -551,7 +557,7 @@ def crear_layers(df, df_filtro, balizas_df, baliza_temp_df, show_temp):
                 name="Track recortado",
             )
         )
-    # punto rojo 40% en inicio de tramo
+    # puntos de referencia del tramo (inicio/fin)
     if not df_filtro.empty:
         layers.append(
             pdk.Layer(
@@ -568,6 +574,23 @@ def crear_layers(df, df_filtro, balizas_df, baliza_temp_df, show_temp):
                 get_radius=7,
                 pickable=True,
                 name="Inicio del tramo",
+            )
+        )
+        layers.append(
+            pdk.Layer(
+                "ScatterplotLayer",
+                data=[
+                    {
+                        "lat": float(df_filtro.iloc[-1]["Lat"]),
+                        "lon": float(df_filtro.iloc[-1]["Lon"]),
+                        "name": "Fin del tramo",
+                    }
+                ],
+                get_position="[lon, lat]",
+                get_color="[34,139,34,102]",  # verde, 40% opacidad
+                get_radius=7,
+                pickable=True,
+                name="Fin del tramo",
             )
         )
     # balizas confirmadas
@@ -676,7 +699,7 @@ with st.container():
 # ======================================
 # TABLAS RESUMEN BAJO EL MAPA
 # ======================================
-
+st.caption("📝 Nota: la baliza temporal se toma del **punto final** del tramo filtrado (último punto).")
 st.markdown("### 📋 Resumen de elementos definidos")
 
 # ---------- BALIZAS ----------
